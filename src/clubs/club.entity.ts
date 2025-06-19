@@ -1,10 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable } from 'typeorm';
 import { User } from '../users/user.entity';
 
 export enum ClubStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected'
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
 }
 
 @Entity()
@@ -21,6 +21,12 @@ export class Club {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  socialMediaLink: string;
+
   @Column({
     type: 'enum',
     enum: ClubStatus,
@@ -31,7 +37,20 @@ export class Club {
   @ManyToOne(() => User, { eager: true })
   owner: User;
 
-  @OneToMany(() => User, user => user.club)
+  @ManyToMany(() => User)
+  @JoinTable({
+    name: 'club_administrators',
+    joinColumn: { name: 'club_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' }
+  })
+  administrators: User[];
+
+  @ManyToMany(() => User)
+  @JoinTable({
+    name: 'club_members',
+    joinColumn: { name: 'club_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' }
+  })
   members: User[];
 
   @CreateDateColumn()

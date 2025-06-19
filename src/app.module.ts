@@ -29,7 +29,7 @@ import { ClubRequest } from './clubs/club-request.entity';
         database: configService.get<string>('POSTGRES_DATABASE'),
         entities: [User, Club, ClubRequest],
         synchronize: true,
-        dropSchema: false,
+        dropSchema: true,
         ssl: configService.get<boolean>('DB_SSL')
           ? { rejectUnauthorized: false }
           : false,

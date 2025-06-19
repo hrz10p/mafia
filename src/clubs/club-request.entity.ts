@@ -3,9 +3,14 @@ import { User } from '../users/user.entity';
 import { Club } from './club.entity';
 
 export enum ClubRequestStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected'
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
+}
+
+export enum ClubRequestType {
+  CLUB_CREATION = 'CLUB_CREATION',
+  MEMBERSHIP = 'MEMBERSHIP'
 }
 
 @Entity()
@@ -18,6 +23,12 @@ export class ClubRequest {
 
   @ManyToOne(() => Club, { eager: true })
   club: Club;
+
+  @Column({
+    type: 'enum',
+    enum: ClubRequestType,
+  })
+  type: ClubRequestType;
 
   @Column({
     type: 'enum',

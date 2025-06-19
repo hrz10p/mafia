@@ -2,10 +2,10 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Club, ClubStatus } from './club.entity';
-import { ClubRequest, ClubRequestStatus } from './club-request.entity';
+import { ClubRequest, ClubRequestStatus, ClubRequestType } from './club-request.entity';
 import { User } from '../users/user.entity';
 import { CreateClubDto, UpdateClubDto, ClubDTO } from './dto/club.dto';
-import { CreateJoinRequestDto, ClubRequestDTO } from './dto/club-request.dto';
+import { CreateJoinRequestDto, CreateClubRequestDto, ClubRequestDTO } from './dto/club-request.dto';
 import { UserRole } from '../common/enums/roles.enum';
 import { UsersService } from '../users/users.service';
 import { UserMapper } from 'src/common/utils/mapper';
@@ -22,7 +22,7 @@ export class ClubsService {
     private usersService: UsersService,
   ) {}
 
-  async createClubRequest(userId: number, dto: CreateClubDto): Promise<ClubDTO> {
+  async createClubRequest(userId: number, dto: CreateClubRequestDto): Promise<ClubDTO> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -45,7 +45,7 @@ export class ClubsService {
   async approveClubRequest(clubId: number): Promise<ClubDTO> {
     const club = await this.clubRepository.findOne({ 
       where: { id: clubId },
-      relations: ['owner', 'members'] 
+      relations: ['owner', 'members', 'administrators'] 
     });
 
     if (!club) {
@@ -78,9 +78,12 @@ export class ClubsService {
     return this.toDTO(savedClub);
   }
 
-  async addMember(clubId: number, userId: number, asAdmin: boolean = false): Promise<ClubDTO> {
+  async addAdministrator(clubId: number, userId: number): Promise<ClubDTO> {
     const [club, user] = await Promise.all([
-      this.clubRepository.findOne({ where: { id: clubId } }),
+      this.clubRepository.findOne({ 
+        where: { id: clubId },
+        relations: ['owner', 'administrators', 'members']
+      }),
       this.userRepository.findOne({ where: { id: userId } })
     ]);
 
@@ -89,47 +92,116 @@ export class ClubsService {
     if (club.status !== ClubStatus.APPROVED) {
       throw new BadRequestException('Club is not approved');
     }
-    if (user.club) {
-      throw new BadRequestException('User already belongs to a club');
+    if (!club.members.some(member => member.id === userId)) {
+      throw new BadRequestException('User must be a club member to become an administrator');
+    }
+    if (club.administrators.some(admin => admin.id === userId)) {
+      throw new BadRequestException('User is already an administrator');
     }
 
-    user.club = club;
-    if (asAdmin) {
-      user.role = UserRole.CLUB_ADMIN;
-    }
+    club.administrators = [...club.administrators, user];
+    user.role = UserRole.CLUB_ADMIN;
 
-    await this.userRepository.save(user);
+    await Promise.all([
+      this.clubRepository.save(club),
+      this.userRepository.save(user)
+    ]);
+
     return this.getClubById(clubId);
   }
 
-  async removeMember(clubId: number, userId: number): Promise<ClubDTO> {
+  async removeAdministrator(clubId: number, userId: number): Promise<ClubDTO> {
     const [club, user] = await Promise.all([
-      this.clubRepository.findOne({ where: { id: clubId } }),
+      this.clubRepository.findOne({ 
+        where: { id: clubId },
+        relations: ['owner', 'administrators', 'members']
+      }),
       this.userRepository.findOne({ where: { id: userId } })
     ]);
 
     if (!club) throw new NotFoundException('Club not found');
     if (!user) throw new NotFoundException('User not found');
-    if (user.club?.id !== clubId) {
-      throw new BadRequestException('User is not a member of this club');
+    if (club.owner.id === userId) {
+      throw new BadRequestException('Cannot remove club owner from administrators');
     }
+    if (!club.administrators.some(admin => admin.id === userId)) {
+      throw new BadRequestException('User is not an administrator');
+    }
+
+    club.administrators = club.administrators.filter(admin => admin.id !== userId);
+    user.role = UserRole.PLAYER;
+
+    await Promise.all([
+      this.clubRepository.save(club),
+      this.userRepository.save(user)
+    ]);
+
+    return this.getClubById(clubId);
+  }
+
+  async addMember(clubId: number, userId: number): Promise<ClubDTO> {
+    const [club, user] = await Promise.all([
+      this.clubRepository.findOne({ 
+        where: { id: clubId },
+        relations: ['members']
+      }),
+      this.userRepository.findOne({ where: { id: userId } })
+    ]);
+
+    if (!club) throw new NotFoundException('Club not found');
+    if (!user) throw new NotFoundException('User not found');
+    if (club.status !== ClubStatus.APPROVED) {
+      throw new BadRequestException('Club is not approved');
+    }
+    if (club.members.some(member => member.id === userId)) {
+      throw new BadRequestException('User is already a member of this club');
+    }
+
+    club.members = [...club.members, user];
+    await this.clubRepository.save(club);
+
+    return this.getClubById(clubId);
+  }
+
+  async removeMember(clubId: number, userId: number): Promise<ClubDTO> {
+    const [club, user] = await Promise.all([
+      this.clubRepository.findOne({ 
+        where: { id: clubId },
+        relations: ['owner', 'members', 'administrators']
+      }),
+      this.userRepository.findOne({ where: { id: userId } })
+    ]);
+
+    if (!club) throw new NotFoundException('Club not found');
+    if (!user) throw new NotFoundException('User not found');
     if (club.owner.id === userId) {
       throw new BadRequestException('Cannot remove club owner');
     }
+    if (!club.members.some(member => member.id === userId)) {
+      throw new BadRequestException('User is not a member of this club');
+    }
 
-    user.club = null;
-    if (user.role === UserRole.CLUB_ADMIN) {
+    // Remove from members
+    club.members = club.members.filter(member => member.id !== userId);
+    
+    // If user is an administrator, remove from administrators
+    if (club.administrators.some(admin => admin.id === userId)) {
+      club.administrators = club.administrators.filter(admin => admin.id !== userId);
       user.role = UserRole.PLAYER;
     }
 
-    await this.userRepository.save(user);
+    await Promise.all([
+      this.clubRepository.save(club),
+      this.userRepository.save(user)
+    ]);
+
     return this.getClubById(clubId);
   }
 
   async getClubById(clubId: number): Promise<ClubDTO> {
     const club = await this.clubRepository.findOne({
       where: { id: clubId },
-      relations: ['owner', 'members']
+      relations: ['owner', 'members', 'administrators']
     });
 
     if (!club) {
@@ -140,7 +212,10 @@ export class ClubsService {
   }
 
   async updateClub(clubId: number, dto: UpdateClubDto): Promise<ClubDTO> {
-    const club = await this.clubRepository.findOne({ where: { id: clubId } });
+    const club = await this.clubRepository.findOne({ 
+      where: { id: clubId },
+      relations: ['owner', 'members', 'administrators']
+    });
     if (!club) {
       throw new NotFoundException('Club not found');
     }
@@ -161,8 +236,8 @@ export class ClubsService {
     if (club.status !== ClubStatus.APPROVED) {
       throw new BadRequestException('Club is not approved');
     }
-    if (user.club) {
-      throw new BadRequestException('User already belongs to a club');
+    if (club.members.some(member => member.id === userId)) {
+      throw new BadRequestException('User is already a member of this club');
     }
 
     // Check if there's already a pending request
@@ -170,7 +245,8 @@ export class ClubsService {
       where: {
         user: { id: userId },
         club: { id: clubId },
-        status: ClubRequestStatus.PENDING
+        status: ClubRequestStatus.PENDING,
+        type: ClubRequestType.MEMBERSHIP
       }
     });
 
@@ -182,7 +258,8 @@ export class ClubsService {
       user,
       club,
       message: dto.message,
-      status: ClubRequestStatus.PENDING
+      status: ClubRequestStatus.PENDING,
+      type: ClubRequestType.MEMBERSHIP
     });
 
     const savedRequest = await this.clubRequestRepository.save(request);
@@ -211,11 +288,17 @@ export class ClubsService {
     }
 
     request.status = ClubRequestStatus.APPROVED;
-    request.user.club = request.club;
+    
+    // Add user to club members
+    const club = await this.clubRepository.findOne({
+      where: { id: request.club.id },
+      relations: ['members']
+    });
+    club.members = [...club.members, request.user];
     
     await Promise.all([
       this.clubRequestRepository.save(request),
-      this.userRepository.save(request.user)
+      this.clubRepository.save(club)
     ]);
 
     return this.toRequestDTO(request);
@@ -250,9 +333,9 @@ export class ClubsService {
 
   async getClubJoinRequests(clubId: number): Promise<ClubRequestDTO[]> {
     const requests = await this.clubRequestRepository.find({
-      where: {
+      where: { 
         club: { id: clubId },
-        status: ClubRequestStatus.PENDING
+        type: ClubRequestType.MEMBERSHIP
       },
       relations: ['user', 'club']
     });
@@ -262,8 +345,9 @@ export class ClubsService {
 
   async getUserJoinRequests(userId: number): Promise<ClubRequestDTO[]> {
     const requests = await this.clubRequestRepository.find({
-      where: {
-        user: { id: userId }
+      where: { 
+        user: { id: userId },
+        type: ClubRequestType.MEMBERSHIP
       },
       relations: ['user', 'club']
     });
@@ -277,9 +361,12 @@ export class ClubsService {
       name: club.name,
       description: club.description,
       logo: club.logo,
+      city: club.city,
+      socialMediaLink: club.socialMediaLink,
       status: club.status,
       owner: UserMapper.toDTO(club.owner),
-      members: UserMapper.toDTOList(club.members) || [],
+      administrators: club.administrators?.map(admin => UserMapper.toDTO(admin)) || [],
+      members: club.members?.map(member => UserMapper.toDTO(member)) || [],
       createdAt: club.createdAt,
       updatedAt: club.updatedAt,
     };
@@ -290,6 +377,7 @@ export class ClubsService {
       id: request.id,
       user: UserMapper.toDTO(request.user),
       club: this.toDTO(request.club),
+      type: request.type,
       status: request.status,
       message: request.message,
       createdAt: request.createdAt,
