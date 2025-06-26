@@ -1,22 +1,22 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ClubsService } from './clubs.service';
-import { CreateClubDto, UpdateClubDto, ClubDTO } from './dto/club.dto';
-import { CreateJoinRequestDto, CreateClubRequestDto, ClubRequestDTO } from './dto/club-request.dto';
+import { CreateClubDto, UpdateClubDto, ClubDTO, CreateJoinRequestDto, CreateClubRequestDto, ClubRequestDTO } from './dto';
 import { AuthGuard } from '../auth/authGuard.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
 import { User } from '../common/decorators/user.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiResponse, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiRoles } from '../common/decorators/api-roles.decorator';
 
-@ApiTags('Clubs')
+@ApiTags('Clubs - Управление клубами')
 @ApiBearerAuth()
 @Controller('clubs')
 @UseGuards(AuthGuard, RolesGuard)
 export class ClubsController {
   constructor(private readonly clubsService: ClubsService) {}
 
-  @ApiOperation({ summary: 'Create a new club request' })
+  @ApiRoles([UserRole.PLAYER], 'Создать заявку на создание клуба')
   @ApiBody({ type: CreateClubRequestDto })
   @ApiResponse({ status: 201, description: 'Club request created successfully', type: ClubDTO })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -30,27 +30,15 @@ export class ClubsController {
     return this.clubsService.createClubRequest(user.id, dto);
   }
 
-  @ApiOperation({ summary: 'Approve a club request' })
-  @ApiParam({ name: 'id', type: 'number', description: 'Club request ID' })
-  @ApiResponse({ status: 200, description: 'Club request approved successfully', type: ClubDTO })
-  @ApiResponse({ status: 404, description: 'Club request not found' })
-  @Put('requests/:id/approve')
-  @Roles(UserRole.ADMIN)
-  async approveClubRequest(@Param('id') id: number): Promise<ClubDTO> {
-    return this.clubsService.approveClubRequest(id);
+  @ApiRoles([UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить все клубы')
+  @ApiResponse({ status: 200, description: 'Clubs retrieved successfully', type: [ClubDTO] })
+  @Get()
+  @Roles(UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
+  async getAllClubs(): Promise<ClubDTO[]> {
+    return this.clubsService.getAllClubs();
   }
 
-  @ApiOperation({ summary: 'Reject a club request' })
-  @ApiParam({ name: 'id', type: 'number', description: 'Club request ID' })
-  @ApiResponse({ status: 200, description: 'Club request rejected successfully', type: ClubDTO })
-  @ApiResponse({ status: 404, description: 'Club request not found' })
-  @Put('requests/:id/reject')
-  @Roles(UserRole.ADMIN)
-  async rejectClubRequest(@Param('id') id: number): Promise<ClubDTO> {
-    return this.clubsService.rejectClubRequest(id);
-  }
-
-  @ApiOperation({ summary: 'Add an administrator to a club' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.ADMIN], 'Добавить администратора в клуб')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiParam({ name: 'userId', type: 'number', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Administrator added successfully', type: ClubDTO })
@@ -64,7 +52,7 @@ export class ClubsController {
     return this.clubsService.addAdministrator(clubId, userId);
   }
 
-  @ApiOperation({ summary: 'Remove an administrator from a club' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.ADMIN], 'Удалить администратора из клуба')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiParam({ name: 'userId', type: 'number', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Administrator removed successfully', type: ClubDTO })
@@ -78,7 +66,7 @@ export class ClubsController {
     return this.clubsService.removeAdministrator(clubId, userId);
   }
 
-  @ApiOperation({ summary: 'Add a member to a club' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN], 'Добавить участника в клуб')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiParam({ name: 'userId', type: 'number', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Member added successfully', type: ClubDTO })
@@ -92,7 +80,7 @@ export class ClubsController {
     return this.clubsService.addMember(clubId, userId);
   }
 
-  @ApiOperation({ summary: 'Remove a member from a club' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN], 'Удалить участника из клуба')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiParam({ name: 'userId', type: 'number', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Member removed successfully', type: ClubDTO })
@@ -106,7 +94,7 @@ export class ClubsController {
     return this.clubsService.removeMember(clubId, userId);
   }
 
-  @ApiOperation({ summary: 'Get club by ID' })
+  @ApiRoles([UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить клуб по ID')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiResponse({ status: 200, description: 'Club retrieved successfully', type: ClubDTO })
   @ApiResponse({ status: 404, description: 'Club not found' })
@@ -116,7 +104,7 @@ export class ClubsController {
     return this.clubsService.getClubById(id);
   }
 
-  @ApiOperation({ summary: 'Update club information' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.ADMIN], 'Обновить информацию о клубе')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiBody({ type: UpdateClubDto })
   @ApiResponse({ status: 200, description: 'Club updated successfully', type: ClubDTO })
@@ -130,7 +118,7 @@ export class ClubsController {
     return this.clubsService.updateClub(id, dto);
   }
 
-  @ApiOperation({ summary: 'Create a join request for a club' })
+  @ApiRoles([UserRole.PLAYER], 'Создать заявку на вступление в клуб')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiBody({ type: CreateJoinRequestDto })
   @ApiResponse({ status: 201, description: 'Join request created successfully', type: ClubRequestDTO })
@@ -145,7 +133,7 @@ export class ClubsController {
     return this.clubsService.createJoinRequest(user.id, clubId, dto);
   }
 
-  @ApiOperation({ summary: 'Approve a join request' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN], 'Одобрить заявку на вступление')
   @ApiParam({ name: 'id', type: 'number', description: 'Join request ID' })
   @ApiResponse({ status: 200, description: 'Join request approved successfully', type: ClubRequestDTO })
   @ApiResponse({ status: 404, description: 'Join request not found' })
@@ -158,7 +146,7 @@ export class ClubsController {
     return this.clubsService.approveJoinRequest(requestId, user.id);
   }
 
-  @ApiOperation({ summary: 'Reject a join request' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN], 'Отклонить заявку на вступление')
   @ApiParam({ name: 'id', type: 'number', description: 'Join request ID' })
   @ApiResponse({ status: 200, description: 'Join request rejected successfully', type: ClubRequestDTO })
   @ApiResponse({ status: 404, description: 'Join request not found' })
@@ -171,7 +159,7 @@ export class ClubsController {
     return this.clubsService.rejectJoinRequest(requestId, user.id);
   }
 
-  @ApiOperation({ summary: 'Get all join requests for a club' })
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN], 'Получить все заявки на вступление в клуб')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiResponse({ status: 200, description: 'Join requests retrieved successfully', type: [ClubRequestDTO] })
   @ApiResponse({ status: 404, description: 'Club not found' })
@@ -181,7 +169,7 @@ export class ClubsController {
     return this.clubsService.getClubJoinRequests(clubId);
   }
 
-  @ApiOperation({ summary: 'Get all join requests created by the current user' })
+  @ApiRoles([UserRole.PLAYER], 'Получить все свои заявки на вступление')
   @ApiResponse({ status: 200, description: 'Join requests retrieved successfully', type: [ClubRequestDTO] })
   @Get('requests/my')
   @Roles(UserRole.PLAYER)

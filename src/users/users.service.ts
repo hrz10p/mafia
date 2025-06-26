@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { User } from './user.entity';
 import * as bcrypt from 'bcryptjs';
 import { SignupDto } from 'src/common/dto/auth.dto';
@@ -8,6 +8,7 @@ import { LoginDto } from 'src/common/dto/auth.dto';
 import { UserMapper } from '../common/utils/mapper';
 import { UserDTO, UpdateUserProfileDto} from 'src/common/dto/user.dto';
 import { UserRole } from '../common/enums/roles.enum';
+import { UserSearchResultDto } from './dto/search-users.dto';
 
 
 @Injectable()
@@ -98,5 +99,24 @@ export class UsersService {
     user.role = role;
     const updatedUser = await this.userRepository.save(user);
     return UserMapper.toDTO(updatedUser);
+  }
+
+  async searchUsersByEmail(email: string, limit: number = 10): Promise<UserSearchResultDto[]> {
+    const users = await this.userRepository.find({
+      where: {
+        email: Like(`%${email}%`),
+      },
+      relations: ['club'],
+      take: limit,
+      order: { email: 'ASC' },
+    });
+
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      name: user.nickname || user.email,
+      role: user.role,
+      club: user.club?.name,
+    }));
   }
 }

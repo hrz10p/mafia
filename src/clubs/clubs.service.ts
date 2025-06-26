@@ -345,14 +345,18 @@ export class ClubsService {
 
   async getUserJoinRequests(userId: number): Promise<ClubRequestDTO[]> {
     const requests = await this.clubRequestRepository.find({
-      where: { 
-        user: { id: userId },
-        type: ClubRequestType.MEMBERSHIP
-      },
-      relations: ['user', 'club']
+      where: { user: { id: userId }, type: ClubRequestType.MEMBERSHIP },
+      relations: ['club'],
     });
-
     return requests.map(request => this.toRequestDTO(request));
+  }
+
+  async getAllClubs(): Promise<ClubDTO[]> {
+    const clubs = await this.clubRepository.find({
+      relations: ['owner', 'administrators', 'members'],
+      order: { createdAt: 'DESC' },
+    });
+    return clubs.map(club => this.toDTO(club));
   }
 
   private toDTO(club: Club): ClubDTO {

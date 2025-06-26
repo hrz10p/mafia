@@ -7,9 +7,18 @@ import { MailModule } from './mail/mail.module';
 import { CacheService } from './cache/cache.service';
 import { SelfModule } from './self/self.module';
 import { ClubsModule } from './clubs/clubs.module';
+import { SeasonsModule } from './seasons/seasons.module';
+import { GamesModule } from './games/games.module';
+import { TournamentsModule } from './tournaments/tournaments.module';
+import { AdminModule } from './admin/admin.module';
+import { RatingsModule } from './ratings/ratings.module';
 import { User } from './users/user.entity';
 import { Club } from './clubs/club.entity';
 import { ClubRequest } from './clubs/club-request.entity';
+import { Season } from './seasons/season.entity';
+import { Game } from './games/game.entity';
+import { GamePlayer } from './games/game-player.entity';
+import { Tournament } from './tournaments/tournament.entity';
 
 @Module({
   imports: [
@@ -27,7 +36,7 @@ import { ClubRequest } from './clubs/club-request.entity';
         username: configService.get<string>('POSTGRES_USER'),
         password: configService.get<string>('POSTGRES_PASSWORD'),
         database: configService.get<string>('POSTGRES_DATABASE'),
-        entities: [User, Club, ClubRequest],
+        entities: [User, Club, ClubRequest, Season, Game, GamePlayer, Tournament],
         synchronize: true,
         dropSchema: true,
         ssl: configService.get<boolean>('DB_SSL')
@@ -40,6 +49,11 @@ import { ClubRequest } from './clubs/club-request.entity';
     MailModule,
     SelfModule,
     ClubsModule,
+    SeasonsModule,
+    GamesModule,
+    TournamentsModule,
+    AdminModule,
+    RatingsModule,
   ],
   providers: [CacheService],
   exports: [CacheService],
