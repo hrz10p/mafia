@@ -6,6 +6,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
 import { ApiRoles } from '../common/decorators/api-roles.decorator';
+import { Club } from '../clubs/club.entity';
 
 @ApiTags('Admin - Администрирование системы')
 @Controller('admin')
@@ -14,30 +15,30 @@ import { ApiRoles } from '../common/decorators/api-roles.decorator';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // Управление заявками на клубы
+  // Управление заявками на клубы (клубы со статусом PENDING)
   @Get('club-requests')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
-  @ApiOperation({ summary: 'Получить все заявки на создание клубов' })
-  @ApiResponse({ status: 200, description: 'Список заявок получен' })
+  @ApiRoles([UserRole.ADMIN], 'Получить все клубы в статусе PENDING')
+  @ApiOperation({ summary: 'Получить все клубы в статусе PENDING' })
+  @ApiResponse({ status: 200, description: 'Список клубов в статусе PENDING', type: [Club] })
   async getClubRequests() {
     return this.adminService.getClubRequests();
   }
 
   @Put('club-requests/:id/approve')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
-  @ApiOperation({ summary: 'Одобрить заявку на создание клуба' })
-  @ApiResponse({ status: 200, description: 'Заявка одобрена' })
+  @ApiRoles([UserRole.ADMIN], 'Одобрить клуб и назначить владельца')
+  @ApiOperation({ summary: 'Одобрить клуб и назначить владельца' })
+  @ApiResponse({ status: 200, description: 'Клуб одобрен, владелец назначен', type: Club })
   async approveClubRequest(@Param('id') id: string) {
     return this.adminService.approveClubRequest(+id);
   }
 
   @Put('club-requests/:id/reject')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
-  @ApiOperation({ summary: 'Отклонить заявку на создание клуба' })
-  @ApiResponse({ status: 200, description: 'Заявка отклонена' })
+  @ApiRoles([UserRole.ADMIN], 'Отклонить клуб')
+  @ApiOperation({ summary: 'Отклонить клуб' })
+  @ApiResponse({ status: 200, description: 'Клуб отклонен', type: Club })
   async rejectClubRequest(
     @Param('id') id: string,
     @Body() body: { reason?: string }
@@ -48,7 +49,7 @@ export class AdminController {
   // Статистика системы
   @Get('stats')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
+  @ApiRoles([UserRole.ADMIN], 'Получить статистику системы')
   @ApiOperation({ summary: 'Получить общую статистику системы' })
   @ApiResponse({ status: 200, description: 'Статистика получена' })
   async getSystemStats() {
@@ -58,7 +59,7 @@ export class AdminController {
   // Управление пользователями
   @Get('users')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
+  @ApiRoles([UserRole.ADMIN], 'Получить всех пользователей')
   @ApiOperation({ summary: 'Получить всех пользователей системы' })
   @ApiResponse({ status: 200, description: 'Список пользователей получен' })
   async getAllUsers() {
@@ -67,7 +68,7 @@ export class AdminController {
 
   @Put('users/:id/role')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
+  @ApiRoles([UserRole.ADMIN], 'Изменить роль пользователя')
   @ApiOperation({ summary: 'Изменить роль пользователя' })
   @ApiResponse({ status: 200, description: 'Роль пользователя изменена' })
   async updateUserRole(
@@ -80,16 +81,16 @@ export class AdminController {
   // Управление клубами
   @Get('clubs')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
+  @ApiRoles([UserRole.ADMIN], 'Получить все клубы')
   @ApiOperation({ summary: 'Получить все клубы системы' })
-  @ApiResponse({ status: 200, description: 'Список клубов получен' })
+  @ApiResponse({ status: 200, description: 'Список клубов получен', type: [Club] })
   async getAllClubs() {
     return this.adminService.getAllClubs();
   }
 
   @Delete('clubs/:id')
   @Roles(UserRole.ADMIN)
-  @ApiRoles([UserRole.ADMIN])
+  @ApiRoles([UserRole.ADMIN], 'Удалить клуб')
   @ApiOperation({ summary: 'Удалить клуб' })
   @ApiResponse({ status: 200, description: 'Клуб удален' })
   async deleteClub(@Param('id') id: string) {

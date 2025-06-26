@@ -38,7 +38,6 @@ import { Tournament } from './tournaments/tournament.entity';
         database: configService.get<string>('POSTGRES_DATABASE'),
         entities: [User, Club, ClubRequest, Season, Game, GamePlayer, Tournament],
         synchronize: true,
-        dropSchema: true,
         ssl: configService.get<boolean>('DB_SSL')
           ? { rejectUnauthorized: false }
           : false,

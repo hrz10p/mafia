@@ -26,61 +26,58 @@ export class AdminService {
     private tournamentsRepository: Repository<Tournament>,
   ) {}
 
-  // Управление заявками на создание клубов
-  async getClubRequests(): Promise<ClubRequest[]> {
-    return this.clubRequestsRepository.find({
-      relations: ['user', 'club'],
+  // Управление заявками на создание клубов (клубы со статусом PENDING)
+  async getClubRequests(): Promise<Club[]> {
+    return this.clubsRepository.find({
+      where: { status: ClubStatus.PENDING },
+      relations: ['owner'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async approveClubRequest(requestId: number): Promise<Club> {
-    const request = await this.clubRequestsRepository.findOne({
-      where: { id: requestId },
-      relations: ['user', 'club'],
+  async approveClubRequest(clubId: number): Promise<Club> {
+    const club = await this.clubsRepository.findOne({
+      where: { id: clubId },
+      relations: ['owner'],
     });
 
-    if (!request) {
-      throw new NotFoundException('Заявка не найдена');
+    if (!club) {
+      throw new NotFoundException('Клуб не найден');
     }
 
-    if (request.status !== ClubRequestStatus.PENDING) {
-      throw new ForbiddenException('Заявка уже обработана');
+    if (club.status !== ClubStatus.PENDING) {
+      throw new ForbiddenException('Клуб уже обработан');
     }
-
-    // Обновляем статус заявки
-    request.status = ClubRequestStatus.APPROVED;
-    await this.clubRequestsRepository.save(request);
 
     // Обновляем статус клуба
-    const club = request.club;
     club.status = ClubStatus.APPROVED;
     
-    // Обновляем роль владельца клуба
-    club.owner.role = UserRole.CLUB_OWNER;
-    await this.usersRepository.save(club.owner);
+    // Обновляем роль владельца клуба на CLUB_OWNER
+    const owner = club.owner;
+    owner.role = UserRole.CLUB_OWNER;
+    await this.usersRepository.save(owner);
 
     return this.clubsRepository.save(club);
   }
 
-  async rejectClubRequest(requestId: number, reason?: string): Promise<ClubRequest> {
-    const request = await this.clubRequestsRepository.findOne({
-      where: { id: requestId },
-      relations: ['user', 'club'],
+  async rejectClubRequest(clubId: number, reason?: string): Promise<Club> {
+    const club = await this.clubsRepository.findOne({
+      where: { id: clubId },
+      relations: ['owner'],
     });
 
-    if (!request) {
-      throw new NotFoundException('Заявка не найдена');
+    if (!club) {
+      throw new NotFoundException('Клуб не найден');
     }
 
-    if (request.status !== ClubRequestStatus.PENDING) {
-      throw new ForbiddenException('Заявка уже обработана');
+    if (club.status !== ClubStatus.PENDING) {
+      throw new ForbiddenException('Клуб уже обработан');
     }
 
-    // Обновляем статус заявки
-    request.status = ClubRequestStatus.REJECTED;
+    // Обновляем статус клуба на REJECTED
+    club.status = ClubStatus.REJECTED;
     
-    return this.clubRequestsRepository.save(request);
+    return this.clubsRepository.save(club);
   }
 
   // Общая статистика системы
@@ -98,7 +95,7 @@ export class AdminService {
       this.seasonsRepository.count(),
       this.tournamentsRepository.count(),
       this.gamesRepository.count(),
-      this.clubRequestsRepository.count({ where: { status: ClubRequestStatus.PENDING } }),
+      this.clubsRepository.count({ where: { status: ClubStatus.PENDING } }),
     ]);
 
     return {
