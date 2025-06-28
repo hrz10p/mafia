@@ -10,9 +10,9 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,              // удаляет лишние поля
-      forbidNonWhitelisted: true,   // кидает ошибку, если есть лишние поля
-      transform: true,              // кастит string -> number и т.д.
+      whitelist: true, // удаляет лишние поля
+      forbidNonWhitelisted: true, // кидает ошибку, если есть лишние поля
+      transform: true, // кастит string -> number и т.д.
     }),
   );
 
@@ -25,6 +25,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  await app.listen(3001);
 }
 bootstrap();

@@ -9,6 +9,7 @@ import { UserDTO } from '../common/dto/user.dto';
 import { UserRole } from '../common/enums/roles.enum';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { ExtendedUserProfileDto } from './dto/extended-profile.dto';
 
 @ApiTags('Self')
 @ApiBearerAuth()
@@ -17,13 +18,20 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes
 export class SelfController {
   constructor(private readonly selfService: SelfService) {}
 
-  @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Profile retrieved successfully', type: UserDTO })
+  @ApiOperation({ 
+    summary: 'Get current user profile',
+    description: 'Returns detailed user profile with club information if user is club owner, administrator or member. Shows complete player statistics and club details including role in club.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Profile retrieved successfully with club information', 
+    type: ExtendedUserProfileDto 
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get('profile')
   @Roles(UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
-  async getMyProfile(@User() user: { id: number }): Promise<UserDTO> {
-    return this.selfService.getMyProfile(user.id);
+  async getMyProfile(@User() user: { id: number }): Promise<ExtendedUserProfileDto> {
+    return this.selfService.getMyExtendedProfile(user.id);
   }
 
   @ApiOperation({ summary: 'Update current user profile' })

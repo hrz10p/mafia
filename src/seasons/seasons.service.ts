@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Season, SeasonStatus } from './season.entity';
 import { CreateSeasonDto } from './dto/create-season.dto';
 import { UpdateSeasonDto } from './dto/update-season.dto';
+import { GetSeasonsDto, SeasonResponseDto } from './dto';
 import { User } from '../users/user.entity';
 import { Club } from '../clubs/club.entity';
 import { UserRole } from '../common/enums/roles.enum';
@@ -66,6 +67,72 @@ export class SeasonsService {
     }
 
     return query.getMany();
+  }
+
+  async getAllSeasons(query: GetSeasonsDto): Promise<SeasonResponseDto> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      clubId,
+      refereeId,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC'
+    } = query;
+
+    const queryBuilder = this.seasonsRepository.createQueryBuilder('season')
+      .leftJoinAndSelect('season.club', 'club')
+      .leftJoinAndSelect('season.referee', 'referee')
+      .leftJoinAndSelect('season.games', 'games');
+
+    // Поиск по названию
+    if (search) {
+      queryBuilder.andWhere('season.name ILIKE :search', { search: `%${search}%` });
+    }
+
+    // Фильтр по статусу
+    if (status) {
+      queryBuilder.andWhere('season.status = :status', { status });
+    }
+
+    // Фильтр по клубу
+    if (clubId) {
+      queryBuilder.andWhere('season.club.id = :clubId', { clubId });
+    }
+
+    // Фильтр по судье
+    if (refereeId) {
+      queryBuilder.andWhere('season.referee.id = :refereeId', { refereeId });
+    }
+
+    // Сортировка
+    const allowedSortFields = ['id', 'name', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt'];
+    const finalSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    queryBuilder.orderBy(`season.${finalSortBy}`, sortOrder);
+
+    // Подсчет общего количества
+    const total = await queryBuilder.getCount();
+
+    // Пагинация
+    const skip = (page - 1) * limit;
+    queryBuilder.skip(skip).take(limit);
+
+    const seasons = await queryBuilder.getMany();
+
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      seasons,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNext,
+      hasPrev
+    };
   }
 
   async findOne(id: number): Promise<Season> {

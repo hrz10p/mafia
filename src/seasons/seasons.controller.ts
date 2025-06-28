@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SeasonsService } from './seasons.service';
-import { CreateSeasonDto, UpdateSeasonDto } from './dto';
+import { CreateSeasonDto, UpdateSeasonDto, GetSeasonsDto, SeasonResponseDto } from './dto';
 import { Season, SeasonStatus } from './season.entity';
 import { AuthGuard } from '../auth/authGuard.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -29,7 +29,27 @@ export class SeasonsController {
 
   @Get()
   @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
-  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить список сезонов')
+  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить список сезонов с пагинацией')
+  @ApiOperation({ 
+    summary: 'Получить все сезоны',
+    description: 'Возвращает список сезонов с пагинацией, фильтрацией и сортировкой. Поддерживает поиск по названию, фильтрацию по статусу, клубу, судье и сортировку по различным полям.'
+  })
+  @ApiResponse({ status: 200, description: 'Список сезонов получен', type: SeasonResponseDto })
+  @ApiQuery({ name: 'page', required: false, description: 'Номер страницы', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Количество элементов на странице', example: 10 })
+  @ApiQuery({ name: 'search', required: false, description: 'Поиск по названию сезона', example: 'зимний' })
+  @ApiQuery({ name: 'status', required: false, description: 'Фильтр по статусу', enum: SeasonStatus })
+  @ApiQuery({ name: 'clubId', required: false, description: 'Фильтр по ID клуба', example: 1 })
+  @ApiQuery({ name: 'refereeId', required: false, description: 'Фильтр по ID судьи', example: 1 })
+  @ApiQuery({ name: 'sortBy', required: false, description: 'Поле для сортировки', example: 'createdAt' })
+  @ApiQuery({ name: 'sortOrder', required: false, description: 'Порядок сортировки', enum: ['ASC', 'DESC'] })
+  getAllSeasons(@Query() query: GetSeasonsDto): Promise<SeasonResponseDto> {
+    return this.seasonsService.getAllSeasons(query);
+  }
+
+  @Get('simple')
+  @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
+  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить простой список сезонов')
   @ApiResponse({ status: 200, description: 'Список сезонов', type: [Season] })
   @ApiQuery({ name: 'clubId', required: false, description: 'ID клуба для фильтрации' })
   findAll(@Query('clubId') clubId?: string) {

@@ -153,11 +153,11 @@ export class ClubsService {
     if (club.status !== ClubStatus.APPROVED) {
       throw new BadRequestException('Club is not approved');
     }
-    if (club.members.some(member => member.id === userId)) {
+    if (club.members?.some(member => member.id === userId)) {
       throw new BadRequestException('User is already a member of this club');
     }
 
-    club.members = [...club.members, user];
+    club.members = club.members ? [...club.members, user] : [user];
     await this.clubRepository.save(club);
 
     return this.getClubById(clubId);
@@ -177,7 +177,7 @@ export class ClubsService {
     if (club.owner.id === userId) {
       throw new BadRequestException('Cannot remove club owner');
     }
-    if (!club.members.some(member => member.id === userId)) {
+    if (!club.members?.some(member => member.id === userId)) {
       throw new BadRequestException('User is not a member of this club');
     }
 
@@ -185,7 +185,7 @@ export class ClubsService {
     club.members = club.members.filter(member => member.id !== userId);
     
     // If user is an administrator, remove from administrators
-    if (club.administrators.some(admin => admin.id === userId)) {
+    if (club.administrators?.some(admin => admin.id === userId)) {
       club.administrators = club.administrators.filter(admin => admin.id !== userId);
       user.role = UserRole.PLAYER;
     }
@@ -228,7 +228,10 @@ export class ClubsService {
   async createJoinRequest(userId: number, clubId: number, dto: CreateJoinRequestDto): Promise<ClubRequestDTO> {
     const [user, club] = await Promise.all([
       this.userRepository.findOne({ where: { id: userId } }),
-      this.clubRepository.findOne({ where: { id: clubId } })
+      this.clubRepository.findOne({ 
+        where: { id: clubId },
+        relations: ['members', 'administrators']
+      })
     ]);
 
     if (!user) throw new NotFoundException('User not found');
@@ -236,7 +239,7 @@ export class ClubsService {
     if (club.status !== ClubStatus.APPROVED) {
       throw new BadRequestException('Club is not approved');
     }
-    if (club.members.some(member => member.id === userId)) {
+    if (club.members?.some(member => member.id === userId)) {
       throw new BadRequestException('User is already a member of this club');
     }
 
@@ -294,7 +297,7 @@ export class ClubsService {
       where: { id: request.club.id },
       relations: ['members']
     });
-    club.members = [...club.members, request.user];
+    club.members = club.members ? [...club.members, request.user] : [request.user];
     
     await Promise.all([
       this.clubRequestRepository.save(request),
