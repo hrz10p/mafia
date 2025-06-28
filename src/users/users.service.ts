@@ -9,6 +9,7 @@ import { UserMapper } from '../common/utils/mapper';
 import { UserDTO, UpdateUserProfileDto} from 'src/common/dto/user.dto';
 import { UserRole } from '../common/enums/roles.enum';
 import { UserSearchResultDto } from './dto/search-users.dto';
+import { GetAllPlayersQueryDto, GetAllPlayersResponseDto, PlayerDto } from './dto/get-all-players.dto';
 
 
 @Injectable()
@@ -118,5 +119,70 @@ export class UsersService {
       role: user.role,
       club: user.club?.name,
     }));
+  }
+
+  async getAllPlayers(query: GetAllPlayersQueryDto): Promise<GetAllPlayersResponseDto> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      role,
+      sortBy = 'nickname',
+      sortOrder = 'ASC'
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    // Строим условия поиска
+    const whereConditions: any = {};
+    
+    if (search) {
+      whereConditions.nickname = Like(`%${search}%`);
+    }
+    
+    if (role) {
+      whereConditions.role = role;
+    }
+
+    // Получаем общее количество игроков
+    const total = await this.userRepository.count({ where: whereConditions });
+
+    // Получаем игроков с пагинацией и сортировкой
+    const users = await this.userRepository.find({
+      where: whereConditions,
+      relations: ['club'],
+      skip,
+      take: limit,
+      order: { [sortBy]: sortOrder },
+    });
+
+    // Преобразуем в DTO
+    const players: PlayerDto[] = users.map(user => ({
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      role: user.role,
+      confirmed: user.confirmed,
+      clubName: user.club?.name,
+      totalGames: user.totalGames,
+      totalWins: user.totalWins,
+      totalPoints: user.totalPoints,
+      totalKills: user.totalKills,
+      totalDeaths: user.totalDeaths,
+      mafiaGames: user.mafiaGames,
+      mafiaWins: user.mafiaWins,
+      citizenGames: user.citizenGames,
+      citizenWins: user.citizenWins,
+      createdAt: user.createdAt,
+    }));
+
+    return {
+      players,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

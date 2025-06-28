@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { Tournament, TournamentStatus } from './tournament.entity';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { UpdateTournamentDto } from './dto/update-tournament.dto';
+import { GetAllTournamentsQueryDto, GetAllTournamentsResponseDto, TournamentDto } from './dto/get-all-tournaments.dto';
 import { User } from '../users/user.entity';
 import { Club } from '../clubs/club.entity';
 import { UserRole } from '../common/enums/roles.enum';
@@ -129,5 +130,80 @@ export class TournamentsService {
 
     tournament.status = status;
     return this.tournamentsRepository.save(tournament);
+  }
+
+  async getAllTournaments(query: GetAllTournamentsQueryDto): Promise<GetAllTournamentsResponseDto> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      clubId,
+      refereeId,
+      sortBy = 'date',
+      sortOrder = 'DESC'
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    // Строим условия поиска
+    const whereConditions: any = {};
+    
+    if (search) {
+      whereConditions.name = Like(`%${search}%`);
+    }
+    
+    if (status) {
+      whereConditions.status = status;
+    }
+
+    if (clubId) {
+      whereConditions.club = { id: clubId };
+    }
+
+    if (refereeId) {
+      whereConditions.referee = { id: refereeId };
+    }
+
+    // Получаем общее количество турниров
+    const total = await this.tournamentsRepository.count({ 
+      where: whereConditions,
+      relations: clubId ? ['club'] : [],
+    });
+
+    // Получаем турниры с пагинацией и сортировкой
+    const tournaments = await this.tournamentsRepository.find({
+      where: whereConditions,
+      relations: ['club', 'referee', 'games'],
+      skip,
+      take: limit,
+      order: { [sortBy]: sortOrder },
+    });
+
+    // Преобразуем в DTO
+    const tournamentsDto: TournamentDto[] = tournaments.map(tournament => ({
+      id: tournament.id,
+      name: tournament.name,
+      description: tournament.description,
+      date: tournament.date,
+      status: tournament.status,
+      clubId: tournament.club.id,
+      clubName: tournament.club.name,
+      clubLogo: tournament.club.logo,
+      refereeId: tournament.referee.id,
+      refereeName: tournament.referee.nickname,
+      refereeEmail: tournament.referee.email,
+      gamesCount: tournament.games?.length || 0,
+      createdAt: tournament.createdAt,
+      updatedAt: tournament.updatedAt,
+    }));
+
+    return {
+      tournaments: tournamentsDto,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 } 

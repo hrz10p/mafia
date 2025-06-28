@@ -1,0 +1,70 @@
+### Получить всех игроков (базовый запрос)
+GET http://localhost:3000/users
+Accept: application/json
+
+### Получить всех игроков с пагинацией
+GET http://localhost:3000/users?page=1&limit=5
+Accept: application/json
+
+### Получить всех игроков с поиском
+GET http://localhost:3000/users?search=john
+Accept: application/json
+
+### Получить всех игроков с фильтром по роли
+GET http://localhost:3000/users?role=player
+Accept: application/json
+
+### Получить всех игроков с сортировкой
+GET http://localhost:3000/users?sortBy=totalWins&sortOrder=DESC
+Accept: application/json
+
+### Комбинированный запрос
+GET http://localhost:3000/users?page=1&limit=10&search=alex&role=player&sortBy=totalPoints&sortOrder=DESC
+Accept: application/json
+
+### Поиск по email
+GET http://localhost:3000/users/search/email?email=test
+Accept: application/json
+
+### Получить пользователя по ID
+GET http://localhost:3000/users/1
+Accept: application/json
+
+### ===== ТУРНИРЫ =====
+
+### Получить все турниры (базовый запрос)
+GET http://localhost:3000/tournaments
+Accept: application/json
+
+### Получить все турниры с пагинацией
+GET http://localhost:3000/tournaments?page=1&limit=5
+Accept: application/json
+
+### Получить все турниры с поиском
+GET http://localhost:3000/tournaments?search=championship
+Accept: application/json
+
+### Получить все турниры с фильтром по статусу
+GET http://localhost:3000/tournaments?status=UPCOMING
+Accept: application/json
+
+### Получить все турниры с фильтром по клубу
+GET http://localhost:3000/tournaments?clubId=1
+Accept: application/json
+
+### Получить все турниры с фильтром по судье
+GET http://localhost:3000/tournaments?refereeId=1
+Accept: application/json
+
+### Получить все турниры с сортировкой
+GET http://localhost:3000/tournaments?sortBy=createdAt&sortOrder=DESC
+Accept: application/json
+
+### Комбинированный запрос для турниров
+GET http://localhost:3000/tournaments?page=1&limit=10&search=winter&status=ACTIVE&sortBy=date&sortOrder=ASC
+Accept: application/json
+
+### Получить турнир по ID (требует авторизацию)
+GET http://localhost:3000/tournaments/1
+Accept: application/json
+Authorization: Bearer YOUR_JWT_TOKEN 
