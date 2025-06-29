@@ -272,7 +272,7 @@ export class ClubsService {
   async approveJoinRequest(requestId: number, actorId: number): Promise<ClubRequestDTO> {
     const request = await this.clubRequestRepository.findOne({
       where: { id: requestId },
-      relations: ['club', 'user']
+      relations: ['club', 'club.owner', 'club.administrators', 'user']
     });
 
     if (!request) throw new NotFoundException('Join request not found');
@@ -282,11 +282,19 @@ export class ClubsService {
 
     // Verify that actor is club owner or admin
     const actor = await this.userRepository.findOne({ 
-      where: { id: actorId },
-      relations: ['club']
+      where: { id: actorId }
     });
 
-    if (!actor || (actor.club?.id !== request.club.id && actor.role !== UserRole.ADMIN)) {
+    if (!actor) {
+      throw new ForbiddenException('User not found');
+    }
+
+    // Check if actor is admin or club owner/administrator
+    const isAdmin = actor.role === UserRole.ADMIN;
+    const isClubOwner = request.club.owner?.id === actorId;
+    const isClubAdmin = request.club.administrators?.some(admin => admin.id === actorId);
+
+    if (!isAdmin && !isClubOwner && !isClubAdmin) {
       throw new ForbiddenException('Not authorized to manage this club');
     }
 
@@ -310,7 +318,7 @@ export class ClubsService {
   async rejectJoinRequest(requestId: number, actorId: number): Promise<ClubRequestDTO> {
     const request = await this.clubRequestRepository.findOne({
       where: { id: requestId },
-      relations: ['club', 'user']
+      relations: ['club', 'club.owner', 'club.administrators', 'user']
     });
 
     if (!request) throw new NotFoundException('Join request not found');
@@ -320,11 +328,19 @@ export class ClubsService {
 
     // Verify that actor is club owner or admin
     const actor = await this.userRepository.findOne({ 
-      where: { id: actorId },
-      relations: ['club']
+      where: { id: actorId }
     });
 
-    if (!actor || (actor.club?.id !== request.club.id && actor.role !== UserRole.ADMIN)) {
+    if (!actor) {
+      throw new ForbiddenException('User not found');
+    }
+
+    // Check if actor is admin or club owner/administrator
+    const isAdmin = actor.role === UserRole.ADMIN;
+    const isClubOwner = request.club.owner?.id === actorId;
+    const isClubAdmin = request.club.administrators?.some(admin => admin.id === actorId);
+
+    if (!isAdmin && !isClubOwner && !isClubAdmin) {
       throw new ForbiddenException('Not authorized to manage this club');
     }
 
