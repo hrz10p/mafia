@@ -488,7 +488,6 @@ export class GamesService {
     const updatedGamePlayers: GamePlayer[] = [];
     // Обновляем результаты игроков
     for (const playerResult of updateGameResultDto.playerResults) {
-      console.log(playerResult);
       const gamePlayer = await this.gamePlayersRepository.findOne({
         where: {
           game: { id },
@@ -515,7 +514,6 @@ export class GamesService {
     }
 
     // Сохраняем обновленную игру
-    await this.gamesRepository.save(game);
     return updatedGamePlayers;
   }
 }
