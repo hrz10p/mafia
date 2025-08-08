@@ -21,28 +21,28 @@ export class CreateGamePlayerDto {
   @ApiPropertyOptional({ 
     description: 'Очки игрока', 
     default: 0,
-    example: 10
+    example: 10.5
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   points?: number;
 
   @ApiPropertyOptional({ 
     description: 'Дополнительные баллы', 
     default: 0,
-    example: 2
+    example: 2.25
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   bonusPoints?: number;
 
   @ApiPropertyOptional({ 
     description: 'Вычеты баллов', 
     default: 0,
-    example: 1
+    example: 1.75
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   penaltyPoints?: number;
 
   @ApiPropertyOptional({ 

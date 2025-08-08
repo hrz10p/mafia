@@ -60,12 +60,16 @@ export class RatingsService {
         }
 
         const stats = playerStats.get(playerId)!;
-        stats.totalPoints += gamePlayer.points;
+        const combinedPoints =
+          (gamePlayer.points ?? 0) +
+          (gamePlayer.bonusPoints ?? 0) -
+          (gamePlayer.penaltyPoints ?? 0);
+        stats.totalPoints += combinedPoints;
         stats.gamesPlayed += 1;
 
         // Определяем победителя (можно настроить логику)
         // Пока считаем, что игрок победил, если набрал больше 0 очков
-        if (gamePlayer.points > 0) {
+        if (combinedPoints > 0) {
           stats.gamesWon += 1;
         }
       }
@@ -134,11 +138,15 @@ export class RatingsService {
         }
 
         const stats = playerStats.get(playerId)!;
-        stats.totalPoints += gamePlayer.points;
+        const combinedPoints =
+          (gamePlayer.points ?? 0) +
+          (gamePlayer.bonusPoints ?? 0) -
+          (gamePlayer.penaltyPoints ?? 0);
+        stats.totalPoints += combinedPoints;
         stats.gamesPlayed += 1;
 
         // Определяем победителя
-        if (gamePlayer.points > 0) {
+        if (combinedPoints > 0) {
           stats.gamesWon += 1;
         }
       }

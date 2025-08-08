@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, IsOptional, IsEnum, Min, Max, IsArray } from 'class-validator';
+import { IsNumber, IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
 import { PlayerRole } from '../game-player.entity';
 
 export class UpdateGamePlayerResultDto {
@@ -20,33 +20,27 @@ export class UpdateGamePlayerResultDto {
 
   @ApiProperty({
     description: 'Баллы игрока',
-    example: 10,
-    minimum: 0,
+    example: 10.5,
   })
-  @IsNumber()
-  @Min(0)
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   points: number;
 
   @ApiProperty({
     description: 'Дополнительные баллы',
-    example: 2,
-    minimum: 0,
+    example: 2.25,
     required: false,
   })
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   bonusPoints?: number;
 
   @ApiProperty({
     description: 'Вычеты баллов',
-    example: 1,
-    minimum: 0,
+    example: 1.75,
     required: false,
   })
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   penaltyPoints?: number;
 
   @ApiProperty({

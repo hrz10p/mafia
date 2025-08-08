@@ -46,13 +46,13 @@ export class GamePlayer {
   @Column({ type: 'int', nullable: true })
   seatIndex: number | null;
 
-  @Column({ default: 0 })
+  @Column({ type: 'float', default: 0 })
   points: number;
 
-  @Column({ default: 0 })
+  @Column({ type: 'float', default: 0 })
   bonusPoints: number;
 
-  @Column({ default: 0 })
+  @Column({ type: 'float', default: 0 })
   penaltyPoints: number;
 
   @Column({ default: 0 })
