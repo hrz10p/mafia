@@ -9,6 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { User } from '../users/user.entity';
 import { ApiRoles } from '../common/decorators/api-roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
+import { GamePlayer } from './game-player.entity';
 
 @ApiTags('Games - Управление играми')
 @Controller('games')
@@ -98,7 +99,7 @@ export class GamesController {
   @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
   @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Обновить результаты игры')
   @ApiOperation({ summary: 'Обновить результаты игры и статистику игроков' })
-  @ApiResponse({ status: 200, description: 'Результаты игры обновлены', type: Game })
+  @ApiResponse({ status: 200, description: 'Результаты игры обновлены', type: [GamePlayer] })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
   @ApiResponse({ status: 404, description: 'Игра не найдена' })
   updateGameResults(

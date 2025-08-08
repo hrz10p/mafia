@@ -469,7 +469,7 @@ export class GamesService {
     id: number,
     updateGameResultDto: UpdateGameResultDto,
     currentUser: User,
-  ): Promise<Game> {
+  ): Promise<GamePlayer[]> {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
@@ -491,8 +491,10 @@ export class GamesService {
       game.resultTable = updateGameResultDto.resultTable;
     }
 
+    const updatedGamePlayers: GamePlayer[] = [];
     // Обновляем результаты игроков
     for (const playerResult of updateGameResultDto.playerResults) {
+      console.log(playerResult);
       const gamePlayer = await this.gamePlayersRepository.findOne({
         where: {
           game: { id },
@@ -514,10 +516,12 @@ export class GamesService {
       gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
       gamePlayer.notes = playerResult.notes || '';
 
-      await this.gamePlayersRepository.save(gamePlayer);
+      const saved = await this.gamePlayersRepository.save(gamePlayer);
+      updatedGamePlayers.push(saved);
     }
 
     // Сохраняем обновленную игру
-    return this.gamesRepository.save(game);
+    await this.gamesRepository.save(game);
+    return updatedGamePlayers;
   }
 }
