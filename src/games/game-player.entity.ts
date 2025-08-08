@@ -7,7 +7,8 @@ export enum PlayerRole {
   CITIZEN = 'CITIZEN',
   DOCTOR = 'DOCTOR',
   DETECTIVE = 'DETECTIVE',
-  DON = 'DON'
+  DON = 'DON',
+  MANIAC = 'MANIAC'
 }
 
 export enum PlayerStatus {
