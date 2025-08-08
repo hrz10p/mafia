@@ -16,6 +16,7 @@ import { Season } from '../seasons/season.entity';
 import { Tournament } from '../tournaments/tournament.entity';
 import { GamePlayer, PlayerRole } from './game-player.entity';
 import { UserRole } from '../common/enums/roles.enum';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class GamesService {
@@ -75,8 +76,9 @@ export class GamesService {
         // Создаем нового пользователя с никнеймом
         player = this.usersRepository.create({
           nickname,
-          email: `${nickname}@temp.com`, // Временный email
+          email: `${nickname}@mafspace.ru`, // Временный email
           role: UserRole.PLAYER,
+          password: await bcrypt.hash(nickname, 10),
         });
         await this.usersRepository.save(player);
       }
