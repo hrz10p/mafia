@@ -89,13 +89,13 @@ export class GamesService {
     // Генерируем расписание игр
     const games: Game[] = [];
     const playerGameCount = new Map<number, number>(); // Количество игр для каждого игрока
-    const playerPositions = new Map<number, Map<number, Set<number>>>(); // Позиции игрока на каждом столе
+    const playerSeatIndices = new Map<number, Set<number>>(); // Глобальные занятые seatIndex для каждого игрока
     const playerRounds = new Map<number, Set<number>>(); // Туры, в которых играл игрок
 
     // Инициализируем счетчики
     players.forEach(player => {
       playerGameCount.set(player.id, 0);
-      playerPositions.set(player.id, new Map()); // Для каждого стола отдельный Set позиций
+      playerSeatIndices.set(player.id, new Set());
       playerRounds.set(player.id, new Set());
     });
 
@@ -118,7 +118,7 @@ export class GamesService {
           shuffledPlayers,
           generateGamesDto.playersPerGame,
           playerGameCount,
-          playerPositions,
+          playerSeatIndices,
           playerRounds,
           table,
           round,
@@ -161,13 +161,8 @@ export class GamesService {
         // Обновляем счетчики
         gamePlayers.forEach((player, position) => {
           playerGameCount.set(player.id, playerGameCount.get(player.id)! + 1);
-
-          // Отмечаем позицию игрока на этом столе
-          const playerTablePositions = playerPositions.get(player.id)!;
-          if (!playerTablePositions.has(table)) {
-            playerTablePositions.set(table, new Set());
-          }
-          playerTablePositions.get(table)!.add(position);
+          // Отмечаем глобальный seatIndex
+          playerSeatIndices.get(player.id)!.add(position);
 
           playerRounds.get(player.id)!.add(round);
 
@@ -190,7 +185,7 @@ export class GamesService {
     availablePlayers: User[],
     playersPerGame: number,
     playerGameCount: Map<number, number>,
-    playerPositions: Map<number, Map<number, Set<number>>>,
+    playerSeatIndices: Map<number, Set<number>>,
     playerRounds: Map<number, Set<number>>,
     currentTable: number,
     currentRound: number,
@@ -213,9 +208,8 @@ export class GamesService {
           const roundsPlayed = playerRounds.get(player.id)!;
           if (roundsPlayed.has(currentRound)) return false; // уже играет в этом туре
 
-          const playerTablePositions = playerPositions.get(player.id)!;
-          const occupied = playerTablePositions.get(currentTable) || new Set<number>();
-          if (occupied.has(position)) return false; // уже сидел на этой позиции за этим столом
+          const usedSeats = playerSeatIndices.get(player.id)!;
+          if (usedSeats.has(position)) return false; // уже сидел на этой позиции в любой игре
 
           return true;
         });
