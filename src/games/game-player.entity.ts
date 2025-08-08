@@ -44,10 +44,10 @@ export class GamePlayer {
   points: number;
 
   @Column({ default: 0 })
-  kills: number;
+  bonusPoints: number;
 
   @Column({ default: 0 })
-  deaths: number;
+  penaltyPoints: number;
 
   @Column({ default: 0 })
   gamesPlayed: number;

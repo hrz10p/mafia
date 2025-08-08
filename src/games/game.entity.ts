@@ -42,12 +42,8 @@ export class Game {
   })
   status: GameStatus;
 
-  @Column({
-    type: 'enum',
-    enum: GameResult,
-    nullable: true
-  })
-  result: GameResult;
+  @Column({ type: 'text', nullable: true })
+  result: string;
 
   @ManyToOne(() => Club, { eager: true })
   club: Club;

@@ -89,24 +89,39 @@ export class GamesService {
     // Генерируем расписание игр
     const games: Game[] = [];
     const playerGameCount = new Map<number, number>(); // Количество игр для каждого игрока
-    const playerPositions = new Map<number, Set<number>>(); // Позиции игрока в играх
+    const playerPositions = new Map<number, Map<number, Set<number>>>(); // Позиции игрока на каждом столе
+    const playerRounds = new Map<number, Set<number>>(); // Туры, в которых играл игрок
 
     // Инициализируем счетчики
     players.forEach(player => {
       playerGameCount.set(player.id, 0);
-      playerPositions.set(player.id, new Set());
+      playerPositions.set(player.id, new Map()); // Для каждого стола отдельный Set позиций
+      playerRounds.set(player.id, new Set());
     });
 
     let gameIndex = 1;
     for (let round = 1; round <= generateGamesDto.roundsCount; round++) {
+      // Создаем копию игроков для текущего тура
+      const availablePlayersForRound = players.filter(player => {
+        const gameCount = playerGameCount.get(player.id)!;
+        const roundsPlayed = playerRounds.get(player.id)!;
+        // Игрок может играть если у него меньше 6 игр и он не играл в этом туре
+        return gameCount < 6 && !roundsPlayed.has(round);
+      });
+
+      // Перемешиваем игроков для случайности
+      const shuffledPlayers = [...availablePlayersForRound].sort(() => Math.random() - 0.5);
+
       for (let table = 1; table <= generateGamesDto.tablesCount; table++) {
         // Выбираем игроков для текущей игры
-        const gamePlayers = this.selectPlayersForGame(
-          players,
+        const gamePlayers = this.selectPlayersForGameInRound(
+          shuffledPlayers,
           generateGamesDto.playersPerGame,
           playerGameCount,
           playerPositions,
+          playerRounds,
           table,
+          round,
         );
 
         // Создаем игру
@@ -128,24 +143,38 @@ export class GamesService {
         const savedGame = await this.gamesRepository.save(game);
 
         // Создаем записи игроков
-        const gamePlayerEntities = gamePlayers.map((player, index) =>
-          this.gamePlayersRepository.create({
-            game: savedGame,
-            player,
-            role: PlayerRole.CITIZEN, // По умолчанию гражданин, можно рандомизировать
-            points: 0,
-            kills: 0,
-            deaths: 0,
-            notes: '',
-          }),
-        );
+        const gamePlayerEntities = gamePlayers.map((player, index) => {
+          const gamePlayer = new GamePlayer();
+          gamePlayer.game = savedGame;
+          gamePlayer.player = player;
+          gamePlayer.role = PlayerRole.CITIZEN; // По умолчанию гражданин, можно рандомизировать
+          gamePlayer.points = 0;
+          gamePlayer.bonusPoints = 0;
+          gamePlayer.penaltyPoints = 0;
+          gamePlayer.notes = '';
+          return gamePlayer;
+        });
 
         await this.gamePlayersRepository.save(gamePlayerEntities);
 
         // Обновляем счетчики
-        gamePlayers.forEach(player => {
+        gamePlayers.forEach((player, position) => {
           playerGameCount.set(player.id, playerGameCount.get(player.id)! + 1);
-          playerPositions.get(player.id)!.add(table);
+          
+          // Отмечаем позицию игрока на этом столе
+          const playerTablePositions = playerPositions.get(player.id)!;
+          if (!playerTablePositions.has(table)) {
+            playerTablePositions.set(table, new Set());
+          }
+          playerTablePositions.get(table)!.add(position);
+          
+          playerRounds.get(player.id)!.add(round);
+          
+          // Удаляем игрока из доступных для этого тура
+          const playerIndex = shuffledPlayers.findIndex(p => p.id === player.id);
+          if (playerIndex !== -1) {
+            shuffledPlayers.splice(playerIndex, 1);
+          }
         });
 
         games.push(savedGame);
@@ -156,30 +185,33 @@ export class GamesService {
     return games;
   }
 
-  private selectPlayersForGame(
-    allPlayers: User[],
+  private selectPlayersForGameInRound(
+    availablePlayers: User[],
     playersPerGame: number,
     playerGameCount: Map<number, number>,
-    playerPositions: Map<number, Set<number>>,
+    playerPositions: Map<number, Map<number, Set<number>>>,
+    playerRounds: Map<number, Set<number>>,
     currentTable: number,
+    currentRound: number,
   ): User[] {
-    // Сортируем игроков по количеству игр (меньше игр = выше приоритет)
-    const availablePlayers = allPlayers
-      .filter(player => {
-        const gameCount = playerGameCount.get(player.id)!;
-        const positions = playerPositions.get(player.id)!;
-        // Игрок может играть если у него меньше 6 игр и он не играл на этом столе
-        return gameCount < 6 && !positions.has(currentTable);
-      })
-      .sort((a, b) => {
-        const countA = playerGameCount.get(a.id)!;
-        const countB = playerGameCount.get(b.id)!;
-        return countA - countB;
-      });
+    // Фильтруем игроков, которые могут играть в этой игре
+    const eligiblePlayers = availablePlayers.filter(player => {
+      const gameCount = playerGameCount.get(player.id)!;
+      const playerTablePositions = playerPositions.get(player.id)!;
+      const roundsPlayed = playerRounds.get(player.id)!;
+      
+      // Игрок может играть если:
+      // 1. У него меньше 6 игр
+      // 2. Он не играл в этом туре
+      // 3. На этом столе у него занято меньше позиций чем нужно игроков
+      const positionsOnThisTable = playerTablePositions.get(currentTable)?.size || 0;
+      
+      return gameCount < 6 && !roundsPlayed.has(currentRound) && positionsOnThisTable < playersPerGame;
+    });
 
-    if (availablePlayers.length < playersPerGame) {
+    if (eligiblePlayers.length < playersPerGame) {
       // Если недостаточно игроков, берем тех, кто меньше всего играл
-      const sortedByGames = allPlayers
+      const sortedByGames = availablePlayers
         .sort((a, b) => {
           const countA = playerGameCount.get(a.id)!;
           const countB = playerGameCount.get(b.id)!;
@@ -191,7 +223,7 @@ export class GamesService {
 
     // Выбираем игроков случайным образом из доступных
     const selectedPlayers: User[] = [];
-    const shuffled = [...availablePlayers].sort(() => Math.random() - 0.5);
+    const shuffled = [...eligiblePlayers].sort(() => Math.random() - 0.5);
     
     for (let i = 0; i < playersPerGame && i < shuffled.length; i++) {
       selectedPlayers.push(shuffled[i]);
@@ -287,17 +319,17 @@ export class GamesService {
     const savedGame = await this.gamesRepository.save(game);
 
     // Создаем записи игроков с результатами
-    const gamePlayers = createGameDto.players.map((playerDto) =>
-      this.gamePlayersRepository.create({
-        game: savedGame,
-        player: { id: playerDto.playerId } as User,
-        role: playerDto.role,
-        points: playerDto.points || 0,
-        kills: playerDto.kills || 0,
-        deaths: playerDto.deaths || 0,
-        notes: playerDto.notes,
-      }),
-    );
+    const gamePlayers = createGameDto.players.map((playerDto) => {
+      const gamePlayer = new GamePlayer();
+      gamePlayer.player = { id: playerDto.playerId } as User;
+      gamePlayer.role = playerDto.role;
+      gamePlayer.points = playerDto.points || 0;
+      gamePlayer.bonusPoints = playerDto.bonusPoints || 0;
+      gamePlayer.penaltyPoints = playerDto.penaltyPoints || 0;
+      gamePlayer.notes = playerDto.notes;
+      gamePlayer.game = savedGame;
+      return gamePlayer;
+    });
 
     await this.gamePlayersRepository.save(gamePlayers);
 
@@ -411,6 +443,62 @@ export class GamesService {
     }
 
     game.status = status;
+    return this.gamesRepository.save(game);
+  }
+
+  async updateGameResults(
+    id: number,
+    updateGameResultDto: UpdateGameResultDto,
+    currentUser: User,
+  ): Promise<Game> {
+    const game = await this.findOne(id);
+
+    // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
+    const hasAccess =
+      currentUser.role === UserRole.ADMIN ||
+      game.club.owner.id === currentUser.id ||
+      game.club.administrators.some((admin) => admin.id === currentUser.id) ||
+      currentUser.role === UserRole.JUDGE;
+
+    if (!hasAccess) {
+      throw new ForbiddenException('Недостаточно прав для обновления результатов игры');
+    }
+
+    // Обновляем общие результаты игры
+    if (updateGameResultDto.result !== undefined) {
+      game.result = updateGameResultDto.result;
+    }
+    if (updateGameResultDto.resultTable !== undefined) {
+      game.resultTable = updateGameResultDto.resultTable;
+    }
+
+    // Обновляем результаты игроков
+    for (const playerResult of updateGameResultDto.playerResults) {
+      const gamePlayer = await this.gamePlayersRepository.findOne({
+        where: {
+          game: { id },
+          player: { id: playerResult.playerId },
+        },
+        relations: ['player'],
+      });
+
+      if (!gamePlayer) {
+        throw new NotFoundException(
+          `Игрок с ID ${playerResult.playerId} не найден в игре`,
+        );
+      }
+
+      // Обновляем данные игрока
+      gamePlayer.role = playerResult.role;
+      gamePlayer.points = playerResult.points;
+      gamePlayer.bonusPoints = playerResult.bonusPoints || 0;
+      gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
+      gamePlayer.notes = playerResult.notes || '';
+
+      await this.gamePlayersRepository.save(gamePlayer);
+    }
+
+    // Сохраняем обновленную игру
     return this.gamesRepository.save(game);
   }
 }

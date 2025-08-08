@@ -28,22 +28,22 @@ export class CreateGamePlayerDto {
   points?: number;
 
   @ApiPropertyOptional({ 
-    description: 'Количество убийств', 
+    description: 'Дополнительные баллы', 
     default: 0,
     example: 2
   })
   @IsOptional()
   @IsNumber()
-  kills?: number;
+  bonusPoints?: number;
 
   @ApiPropertyOptional({ 
-    description: 'Количество смертей', 
+    description: 'Вычеты баллов', 
     default: 0,
-    example: 0
+    example: 1
   })
   @IsOptional()
   @IsNumber()
-  deaths?: number;
+  penaltyPoints?: number;
 
   @ApiPropertyOptional({ 
     description: 'Заметки',

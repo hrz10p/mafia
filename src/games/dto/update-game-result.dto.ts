@@ -1,49 +1,87 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsEnum } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { GameResult } from '../game.entity';
-import { PlayerStatus } from '../game-player.entity';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNumber, IsString, IsOptional, IsEnum, Min, Max, IsArray } from 'class-validator';
+import { PlayerRole } from '../game-player.entity';
 
 export class UpdateGamePlayerResultDto {
-  @ApiProperty({ description: 'ID игрока' })
-  @IsString()
+  @ApiProperty({
+    description: 'ID игрока',
+    example: 1,
+  })
+  @IsNumber()
   playerId: number;
 
-  @ApiPropertyOptional({ description: 'Статус игрока' })
-  @IsOptional()
-  @IsEnum(PlayerStatus)
-  status?: PlayerStatus;
+  @ApiProperty({
+    description: 'Роль игрока в игре',
+    enum: PlayerRole,
+    example: PlayerRole.MAFIA,
+  })
+  @IsEnum(PlayerRole)
+  role: PlayerRole;
 
-  @ApiPropertyOptional({ description: 'Очки игрока' })
-  @IsOptional()
-  points?: number;
+  @ApiProperty({
+    description: 'Баллы игрока',
+    example: 10,
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  points: number;
 
-  @ApiPropertyOptional({ description: 'Количество убийств' })
+  @ApiProperty({
+    description: 'Дополнительные баллы',
+    example: 2,
+    minimum: 0,
+    required: false,
+  })
   @IsOptional()
-  kills?: number;
+  @IsNumber()
+  @Min(0)
+  bonusPoints?: number;
 
-  @ApiPropertyOptional({ description: 'Количество смертей' })
+  @ApiProperty({
+    description: 'Вычеты баллов',
+    example: 1,
+    minimum: 0,
+    required: false,
+  })
   @IsOptional()
-  deaths?: number;
+  @IsNumber()
+  @Min(0)
+  penaltyPoints?: number;
 
-  @ApiPropertyOptional({ description: 'Заметки' })
+  @ApiProperty({
+    description: 'Заметки о игроке',
+    example: 'Хорошо играл в команде',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   notes?: string;
 }
 
 export class UpdateGameResultDto {
-  @ApiProperty({ description: 'Результат игры' })
-  @IsEnum(GameResult)
-  result: GameResult;
-
-  @ApiPropertyOptional({ description: 'JSON таблица результатов' })
+  @ApiProperty({
+    description: 'Результат игры',
+    example: 'Победа мафии',
+    required: false,
+  })
   @IsOptional()
-  resultTable?: any;
+  @IsString()
+  result?: string;
 
-  @ApiProperty({ description: 'Результаты игроков' })
+  @ApiProperty({
+    description: 'Таблица результатов',
+    example: 'Детальная таблица результатов',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  resultTable?: string;
+
+  @ApiProperty({
+    description: 'Массив результатов игроков',
+    type: [UpdateGamePlayerResultDto],
+  })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UpdateGamePlayerResultDto)
   playerResults: UpdateGamePlayerResultDto[];
 } 
