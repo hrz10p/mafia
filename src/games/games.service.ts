@@ -113,8 +113,8 @@ export class GamesService {
       const shuffledPlayers = [...availablePlayersForRound].sort(() => Math.random() - 0.5);
 
       for (let table = 1; table <= generateGamesDto.tablesCount; table++) {
-        // Выбираем игроков для текущей игры
-        const gamePlayers = this.selectPlayersForGameInRound(
+        // Выбираем игроков для текущей игры с учетом уникальности позиции на столе
+        const gamePlayers = this.assignPlayersToTable(
           shuffledPlayers,
           generateGamesDto.playersPerGame,
           playerGameCount,
@@ -151,6 +151,7 @@ export class GamesService {
           gamePlayer.points = 0;
           gamePlayer.bonusPoints = 0;
           gamePlayer.penaltyPoints = 0;
+          gamePlayer.seatIndex = index;
           gamePlayer.notes = '';
           return gamePlayer;
         });
@@ -160,18 +161,18 @@ export class GamesService {
         // Обновляем счетчики
         gamePlayers.forEach((player, position) => {
           playerGameCount.set(player.id, playerGameCount.get(player.id)! + 1);
-          
+
           // Отмечаем позицию игрока на этом столе
           const playerTablePositions = playerPositions.get(player.id)!;
           if (!playerTablePositions.has(table)) {
             playerTablePositions.set(table, new Set());
           }
           playerTablePositions.get(table)!.add(position);
-          
+
           playerRounds.get(player.id)!.add(round);
-          
+
           // Удаляем игрока из доступных для этого тура
-          const playerIndex = shuffledPlayers.findIndex(p => p.id === player.id);
+          const playerIndex = shuffledPlayers.findIndex((p) => p.id === player.id);
           if (playerIndex !== -1) {
             shuffledPlayers.splice(playerIndex, 1);
           }
@@ -185,7 +186,7 @@ export class GamesService {
     return games;
   }
 
-  private selectPlayersForGameInRound(
+  private assignPlayersToTable(
     availablePlayers: User[],
     playersPerGame: number,
     playerGameCount: Map<number, number>,
@@ -194,42 +195,60 @@ export class GamesService {
     currentTable: number,
     currentRound: number,
   ): User[] {
-    // Фильтруем игроков, которые могут играть в этой игре
-    const eligiblePlayers = availablePlayers.filter(player => {
-      const gameCount = playerGameCount.get(player.id)!;
-      const playerTablePositions = playerPositions.get(player.id)!;
-      const roundsPlayed = playerRounds.get(player.id)!;
-      
-      // Игрок может играть если:
-      // 1. У него меньше 6 игр
-      // 2. Он не играл в этом туре
-      // 3. На этом столе у него занято меньше позиций чем нужно игроков
-      const positionsOnThisTable = playerTablePositions.get(currentTable)?.size || 0;
-      
-      return gameCount < 6 && !roundsPlayed.has(currentRound) && positionsOnThisTable < playersPerGame;
-    });
+    // Пробуем несколько попыток подобрать без конфликтов
+    const MAX_ATTEMPTS = 100;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      // Копия пула доступных игроков на этот стол
+      const pool = [...availablePlayers].sort(() => Math.random() - 0.5);
+      const selected: (User | null)[] = new Array(playersPerGame).fill(null);
+      const usedInThisTable = new Set<number>();
 
-    if (eligiblePlayers.length < playersPerGame) {
-      // Если недостаточно игроков, берем тех, кто меньше всего играл
-      const sortedByGames = availablePlayers
-        .sort((a, b) => {
-          const countA = playerGameCount.get(a.id)!;
-          const countB = playerGameCount.get(b.id)!;
-          return countA - countB;
-        })
-        .slice(0, playersPerGame);
-      return sortedByGames;
+      let failed = false;
+      for (let position = 0; position < playersPerGame; position++) {
+        // Находим игроков, которые подходят на эту позицию
+        const eligible = pool.filter((player) => {
+          if (usedInThisTable.has(player.id)) return false;
+          const gameCount = playerGameCount.get(player.id)!;
+          if (gameCount >= 6) return false;
+          const roundsPlayed = playerRounds.get(player.id)!;
+          if (roundsPlayed.has(currentRound)) return false; // уже играет в этом туре
+
+          const playerTablePositions = playerPositions.get(player.id)!;
+          const occupied = playerTablePositions.get(currentTable) || new Set<number>();
+          if (occupied.has(position)) return false; // уже сидел на этой позиции за этим столом
+
+          return true;
+        });
+
+        if (eligible.length === 0) {
+          failed = true;
+          break;
+        }
+
+        // Выбираем среди тех, у кого минимальное число игр, случайно из равных
+        let minGames = Number.MAX_SAFE_INTEGER;
+        eligible.forEach((p) => {
+          const cnt = playerGameCount.get(p.id)!;
+          if (cnt < minGames) minGames = cnt;
+        });
+        const best = eligible.filter((p) => playerGameCount.get(p.id)! === minGames);
+        const chosen = best[Math.floor(Math.random() * best.length)];
+
+        selected[position] = chosen;
+        usedInThisTable.add(chosen.id);
+
+        // Убираем выбранного из пула, чтобы не предлагать снова на другой позиции
+        const idx = pool.findIndex((p) => p.id === chosen.id);
+        if (idx !== -1) pool.splice(idx, 1);
+      }
+
+      if (!failed && selected.every((p) => p !== null)) {
+        return selected as User[];
+      }
     }
 
-    // Выбираем игроков случайным образом из доступных
-    const selectedPlayers: User[] = [];
-    const shuffled = [...eligiblePlayers].sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < playersPerGame && i < shuffled.length; i++) {
-      selectedPlayers.push(shuffled[i]);
-    }
-
-    return selectedPlayers;
+    // Если подобрать без конфликтов не удалось после многих попыток
+    throw new ForbiddenException('Не удалось выполнить рассадку без повторов позиций для игроков. Попробуйте уменьшить количество игр/туров или изменить состав.');
   }
 
   async create(createGameDto: CreateGameDto, currentUser: User): Promise<Game> {

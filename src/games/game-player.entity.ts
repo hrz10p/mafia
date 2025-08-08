@@ -42,6 +42,10 @@ export class GamePlayer {
   })
   status: PlayerStatus;
 
+  // Позиция игрока за столом (0..playersPerGame-1)
+  @Column({ type: 'int', nullable: true })
+  seatIndex: number | null;
+
   @Column({ default: 0 })
   points: number;
 
