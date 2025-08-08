@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Game, GameStatus, GameResult } from './game.entity';
 import { CreateGameDto } from './dto/create-game.dto';
 import { UpdateGameDto } from './dto/update-game.dto';
 import { UpdateGameResultDto } from './dto/update-game-result.dto';
+import { GenerateGamesDto } from './dto/generate-games.dto';
 import { User } from '../users/user.entity';
 import { Club } from '../clubs/club.entity';
 import { Season } from '../seasons/season.entity';
@@ -29,18 +34,186 @@ export class GamesService {
     private gamePlayersRepository: Repository<GamePlayer>,
   ) {}
 
+  async generateGames(generateGamesDto: GenerateGamesDto, currentUser: User): Promise<Game[]> {
+    // Проверяем турнир
+    const tournament = await this.tournamentsRepository.findOne({
+      where: { id: generateGamesDto.tournamentId },
+      relations: ['club', 'club.owner', 'club.administrators'],
+    });
+
+    if (!tournament) {
+      throw new NotFoundException('Турнир не найден');
+    }
+
+    // Проверяем права доступа
+    const hasAccess =
+      currentUser.role === UserRole.ADMIN ||
+      tournament.club.owner.id === currentUser.id ||
+      tournament.club.administrators.some((admin) => admin.id === currentUser.id) ||
+      currentUser.role === UserRole.JUDGE;
+
+    if (!hasAccess) {
+      throw new ForbiddenException('Недостаточно прав для генерации игр');
+    }
+
+    // Проверяем валидность параметров
+    const totalPlayersNeeded = generateGamesDto.tablesCount * generateGamesDto.playersPerGame;
+    if (generateGamesDto.playerNicknames.length < totalPlayersNeeded) {
+      throw new ForbiddenException(
+        `Недостаточно игроков. Нужно минимум ${totalPlayersNeeded}, а предоставлено ${generateGamesDto.playerNicknames.length}`,
+      );
+    }
+
+    // Создаем или находим пользователей по никнеймам
+    const players: User[] = [];
+    for (const nickname of generateGamesDto.playerNicknames) {
+      let player = await this.usersRepository.findOne({
+        where: { nickname },
+      });
+
+      if (!player) {
+        // Создаем нового пользователя с никнеймом
+        player = this.usersRepository.create({
+          nickname,
+          email: `${nickname}@temp.com`, // Временный email
+          role: UserRole.PLAYER,
+        });
+        await this.usersRepository.save(player);
+      }
+
+      players.push(player);
+    }
+
+    // Генерируем расписание игр
+    const games: Game[] = [];
+    const playerGameCount = new Map<number, number>(); // Количество игр для каждого игрока
+    const playerPositions = new Map<number, Set<number>>(); // Позиции игрока в играх
+
+    // Инициализируем счетчики
+    players.forEach(player => {
+      playerGameCount.set(player.id, 0);
+      playerPositions.set(player.id, new Set());
+    });
+
+    let gameIndex = 1;
+    for (let round = 1; round <= generateGamesDto.roundsCount; round++) {
+      for (let table = 1; table <= generateGamesDto.tablesCount; table++) {
+        // Выбираем игроков для текущей игры
+        const gamePlayers = this.selectPlayersForGame(
+          players,
+          generateGamesDto.playersPerGame,
+          playerGameCount,
+          playerPositions,
+          table,
+        );
+
+        // Создаем игру
+        const game = this.gamesRepository.create({
+          name: `Стол ${table} - Тур ${round} - Игра ${gameIndex}`,
+          description: `Автоматически сгенерированная игра для турнира`,
+          scheduledDate: new Date(), // Можно настроить по расписанию
+          completedDate: null,
+          club: tournament.club,
+          referee: tournament.referee,
+          season: null,
+          tournament,
+          status: GameStatus.SCHEDULED,
+          result: null,
+          resultTable: null,
+          totalPlayers: gamePlayers.length,
+        });
+
+        const savedGame = await this.gamesRepository.save(game);
+
+        // Создаем записи игроков
+        const gamePlayerEntities = gamePlayers.map((player, index) =>
+          this.gamePlayersRepository.create({
+            game: savedGame,
+            player,
+            role: PlayerRole.CITIZEN, // По умолчанию гражданин, можно рандомизировать
+            points: 0,
+            kills: 0,
+            deaths: 0,
+            notes: '',
+          }),
+        );
+
+        await this.gamePlayersRepository.save(gamePlayerEntities);
+
+        // Обновляем счетчики
+        gamePlayers.forEach(player => {
+          playerGameCount.set(player.id, playerGameCount.get(player.id)! + 1);
+          playerPositions.get(player.id)!.add(table);
+        });
+
+        games.push(savedGame);
+        gameIndex++;
+      }
+    }
+
+    return games;
+  }
+
+  private selectPlayersForGame(
+    allPlayers: User[],
+    playersPerGame: number,
+    playerGameCount: Map<number, number>,
+    playerPositions: Map<number, Set<number>>,
+    currentTable: number,
+  ): User[] {
+    // Сортируем игроков по количеству игр (меньше игр = выше приоритет)
+    const availablePlayers = allPlayers
+      .filter(player => {
+        const gameCount = playerGameCount.get(player.id)!;
+        const positions = playerPositions.get(player.id)!;
+        // Игрок может играть если у него меньше 6 игр и он не играл на этом столе
+        return gameCount < 6 && !positions.has(currentTable);
+      })
+      .sort((a, b) => {
+        const countA = playerGameCount.get(a.id)!;
+        const countB = playerGameCount.get(b.id)!;
+        return countA - countB;
+      });
+
+    if (availablePlayers.length < playersPerGame) {
+      // Если недостаточно игроков, берем тех, кто меньше всего играл
+      const sortedByGames = allPlayers
+        .sort((a, b) => {
+          const countA = playerGameCount.get(a.id)!;
+          const countB = playerGameCount.get(b.id)!;
+          return countA - countB;
+        })
+        .slice(0, playersPerGame);
+      return sortedByGames;
+    }
+
+    // Выбираем игроков случайным образом из доступных
+    const selectedPlayers: User[] = [];
+    const shuffled = [...availablePlayers].sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < playersPerGame && i < shuffled.length; i++) {
+      selectedPlayers.push(shuffled[i]);
+    }
+
+    return selectedPlayers;
+  }
+
   async create(createGameDto: CreateGameDto, currentUser: User): Promise<Game> {
     // Проверяем, что указан либо сезон, либо турнир, но не оба
     if (!createGameDto.seasonId && !createGameDto.tournamentId) {
-      throw new ForbiddenException('Необходимо указать либо сезон, либо турнир');
+      throw new ForbiddenException(
+        'Необходимо указать либо сезон, либо турнир',
+      );
     }
     if (createGameDto.seasonId && createGameDto.tournamentId) {
-      throw new ForbiddenException('Игра может принадлежать либо сезону, либо турниру, но не обоим одновременно');
+      throw new ForbiddenException(
+        'Игра может принадлежать либо сезону, либо турниру, но не обоим одновременно',
+      );
     }
 
-    const club = await this.clubsRepository.findOne({ 
+    const club = await this.clubsRepository.findOne({
       where: { id: createGameDto.clubId },
-      relations: ['owner', 'administrators']
+      relations: ['owner', 'administrators'],
     });
 
     if (!club) {
@@ -48,11 +221,12 @@ export class GamesService {
     }
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess = currentUser.role === UserRole.ADMIN ||
-                     club.owner.id === currentUser.id || 
-                     club.administrators.some(admin => admin.id === currentUser.id) ||
-                     currentUser.role === UserRole.JUDGE;
-    
+    const hasAccess =
+      currentUser.role === UserRole.ADMIN ||
+      club.owner.id === currentUser.id ||
+      club.administrators.some((admin) => admin.id === currentUser.id) ||
+      currentUser.role === UserRole.JUDGE;
+
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для создания игры');
     }
@@ -62,9 +236,9 @@ export class GamesService {
     let referee: User;
 
     if (createGameDto.seasonId) {
-      season = await this.seasonsRepository.findOne({ 
+      season = await this.seasonsRepository.findOne({
         where: { id: createGameDto.seasonId },
-        relations: ['club', 'referee']
+        relations: ['club', 'referee'],
       });
       if (!season) {
         throw new NotFoundException('Сезон не найден');
@@ -74,9 +248,9 @@ export class GamesService {
       }
       referee = season.referee;
     } else {
-      tournament = await this.tournamentsRepository.findOne({ 
+      tournament = await this.tournamentsRepository.findOne({
         where: { id: createGameDto.tournamentId },
-        relations: ['club', 'referee']
+        relations: ['club', 'referee'],
       });
       if (!tournament) {
         throw new NotFoundException('Турнир не найден');
@@ -100,14 +274,18 @@ export class GamesService {
       result: createGameDto.result,
       resultTable: createGameDto.resultTable,
       totalPlayers: createGameDto.players.length,
-      mafiaCount: createGameDto.players.filter(p => p.role === PlayerRole.MAFIA).length,
-      citizenCount: createGameDto.players.filter(p => p.role === PlayerRole.CITIZEN).length,
+      mafiaCount: createGameDto.players.filter(
+        (p) => p.role === PlayerRole.MAFIA,
+      ).length,
+      citizenCount: createGameDto.players.filter(
+        (p) => p.role === PlayerRole.CITIZEN,
+      ).length,
     });
 
     const savedGame = await this.gamesRepository.save(game);
 
     // Создаем записи игроков с результатами
-    const gamePlayers = createGameDto.players.map(playerDto => 
+    const gamePlayers = createGameDto.players.map((playerDto) =>
       this.gamePlayersRepository.create({
         game: savedGame,
         player: { id: playerDto.playerId } as User,
@@ -116,7 +294,7 @@ export class GamesService {
         kills: playerDto.kills || 0,
         deaths: playerDto.deaths || 0,
         notes: playerDto.notes,
-      })
+      }),
     );
 
     await this.gamePlayersRepository.save(gamePlayers);
@@ -124,8 +302,13 @@ export class GamesService {
     return this.findOne(savedGame.id);
   }
 
-  async findAll(clubId?: number, seasonId?: number, tournamentId?: number): Promise<Game[]> {
-    const query = this.gamesRepository.createQueryBuilder('game')
+  async findAll(
+    clubId?: number,
+    seasonId?: number,
+    tournamentId?: number,
+  ): Promise<Game[]> {
+    const query = this.gamesRepository
+      .createQueryBuilder('game')
       .leftJoinAndSelect('game.club', 'club')
       .leftJoinAndSelect('game.referee', 'referee')
       .leftJoinAndSelect('game.season', 'season')
@@ -151,7 +334,14 @@ export class GamesService {
   async findOne(id: number): Promise<Game> {
     const game = await this.gamesRepository.findOne({
       where: { id },
-      relations: ['club', 'referee', 'season', 'tournament', 'players', 'players.player'],
+      relations: [
+        'club',
+        'referee',
+        'season',
+        'tournament',
+        'players',
+        'players.player',
+      ],
     });
 
     if (!game) {
@@ -161,15 +351,20 @@ export class GamesService {
     return game;
   }
 
-  async update(id: number, updateGameDto: UpdateGameDto, currentUser: User): Promise<Game> {
+  async update(
+    id: number,
+    updateGameDto: UpdateGameDto,
+    currentUser: User,
+  ): Promise<Game> {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess = currentUser.role === UserRole.ADMIN ||
-                     game.club.owner.id === currentUser.id || 
-                     game.club.administrators.some(admin => admin.id === currentUser.id) ||
-                     currentUser.role === UserRole.JUDGE;
-    
+    const hasAccess =
+      currentUser.role === UserRole.ADMIN ||
+      game.club.owner.id === currentUser.id ||
+      game.club.administrators.some((admin) => admin.id === currentUser.id) ||
+      currentUser.role === UserRole.JUDGE;
+
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для обновления игры');
     }
@@ -182,29 +377,38 @@ export class GamesService {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба или админ системы)
-    if (currentUser.role !== UserRole.ADMIN && 
-        game.club.owner.id !== currentUser.id && 
-        !game.club.administrators.some(admin => admin.id === currentUser.id)) {
+    if (
+      currentUser.role !== UserRole.ADMIN &&
+      game.club.owner.id !== currentUser.id &&
+      !game.club.administrators.some((admin) => admin.id === currentUser.id)
+    ) {
       throw new ForbiddenException('Недостаточно прав для удаления игры');
     }
 
     await this.gamesRepository.remove(game);
   }
 
-  async updateStatus(id: number, status: GameStatus, currentUser: User): Promise<Game> {
+  async updateStatus(
+    id: number,
+    status: GameStatus,
+    currentUser: User,
+  ): Promise<Game> {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess = currentUser.role === UserRole.ADMIN ||
-                     game.club.owner.id === currentUser.id || 
-                     game.club.administrators.some(admin => admin.id === currentUser.id) ||
-                     currentUser.role === UserRole.JUDGE;
-    
+    const hasAccess =
+      currentUser.role === UserRole.ADMIN ||
+      game.club.owner.id === currentUser.id ||
+      game.club.administrators.some((admin) => admin.id === currentUser.id) ||
+      currentUser.role === UserRole.JUDGE;
+
     if (!hasAccess) {
-      throw new ForbiddenException('Недостаточно прав для обновления статуса игры');
+      throw new ForbiddenException(
+        'Недостаточно прав для обновления статуса игры',
+      );
     }
 
     game.status = status;
     return this.gamesRepository.save(game);
   }
-} 
+}

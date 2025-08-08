@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { GamesService } from './games.service';
-import { CreateGameDto, CreateGamePlayerDto, UpdateGameDto } from './dto';
+import { CreateGameDto, CreateGamePlayerDto, UpdateGameDto, GenerateGamesDto } from './dto';
 import { Game, GameStatus } from './game.entity';
 import { AuthGuard } from '../auth/authGuard.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -25,6 +25,17 @@ export class GamesController {
   @ApiResponse({ status: 404, description: 'Клуб, сезон или турнир не найден' })
   create(@Body() createGameDto: CreateGameDto, @Request() req: { user: User }) {
     return this.gamesService.create(createGameDto, req.user);
+  }
+
+  @Post('generate')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Генерировать игры для турнира')
+  @ApiOperation({ summary: 'Генерировать игры для турнира с автоматической рассадкой игроков' })
+  @ApiResponse({ status: 201, description: 'Игры успешно сгенерированы', type: [Game] })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  @ApiResponse({ status: 404, description: 'Турнир не найден' })
+  generateGames(@Body() generateGamesDto: GenerateGamesDto, @Request() req: { user: User }) {
+    return this.gamesService.generateGames(generateGamesDto, req.user);
   }
 
   @Get()
