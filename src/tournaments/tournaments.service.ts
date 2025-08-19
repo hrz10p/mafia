@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
-import { Tournament, TournamentStatus } from './tournament.entity';
+import { Tournament, TournamentStatus, TournamentType } from './tournament.entity';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { UpdateTournamentDto } from './dto/update-tournament.dto';
 import { GetAllTournamentsQueryDto, GetAllTournamentsResponseDto, TournamentDto } from './dto/get-all-tournaments.dto';
 import { User } from '../users/user.entity';
 import { Club } from '../clubs/club.entity';
 import { UserRole } from '../common/enums/roles.enum';
+import { Game } from '../games/game.entity';
+import { GamePlayer } from '../games/game-player.entity';
+import { UserRoleStatsService } from '../users/user-role-stats.service';
+import { getElo } from '../common/utils/elotable';
 
 @Injectable()
 export class TournamentsService {
@@ -18,23 +22,49 @@ export class TournamentsService {
     private usersRepository: Repository<User>,
     @InjectRepository(Club)
     private clubsRepository: Repository<Club>,
+    @InjectRepository(Game)
+    private gamesRepository: Repository<Game>,
+    @InjectRepository(GamePlayer)
+    private gamePlayersRepository: Repository<GamePlayer>,
+    private userRoleStatsService: UserRoleStatsService,
   ) {}
 
   async create(createTournamentDto: CreateTournamentDto, currentUser: User): Promise<Tournament> {
-    const club = await this.clubsRepository.findOne({ 
-      where: { id: createTournamentDto.clubId },
-      relations: ['owner', 'administrators']
-    });
-
-    if (!club) {
-      throw new NotFoundException('Клуб не найден');
+    // Проверяем права для создания ELO турнира
+    if (createTournamentDto.type === TournamentType.ELO) {
+      if (currentUser.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Только администратор платформы может создавать ELO турниры');
+      }
+      
+      if (!createTournamentDto.stars || createTournamentDto.stars < 1 || createTournamentDto.stars > 6) {
+        throw new BadRequestException('Для ELO турнира необходимо указать звездность от 1 до 6');
+      }
     }
 
-    // Проверяем права доступа (владелец, администратор клуба или админ системы)
-    if (currentUser.role !== UserRole.ADMIN && 
-        club.owner.id !== currentUser.id && 
-        !club.administrators.some(admin => admin.id === currentUser.id)) {
-      throw new ForbiddenException('Недостаточно прав для создания турнира');
+    let club: Club | null = null;
+    
+    // Если указан клуб, проверяем его существование и права
+    if (createTournamentDto.clubId) {
+      club = await this.clubsRepository.findOne({ 
+        where: { id: createTournamentDto.clubId },
+        relations: ['owner', 'administrators']
+      });
+
+      if (!club) {
+        throw new NotFoundException('Клуб не найден');
+      }
+
+      // Проверяем права доступа (владелец, администратор клуба или админ системы)
+      if (currentUser.role !== UserRole.ADMIN && 
+          club.owner.id !== currentUser.id && 
+          !club.administrators.some(admin => admin.id === currentUser.id)) {
+        throw new ForbiddenException('Недостаточно прав для создания турнира в этом клубе');
+      }
+    } else {
+      // Если клуб не указан, проверяем что это ELO турнир или у пользователя есть права
+      if (createTournamentDto.type !== TournamentType.ELO && currentUser.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Только администратор платформы может создавать турниры без привязки к клубу');
+      }
     }
 
     const referee = await this.usersRepository.findOne({ 
@@ -86,8 +116,10 @@ export class TournamentsService {
 
     // Проверяем права доступа
     if (currentUser.role !== UserRole.ADMIN && 
-        tournament.club.owner.id !== currentUser.id && 
-        !tournament.club.administrators.some(admin => admin.id === currentUser.id)) {
+        (!tournament.club || (
+          tournament.club.owner.id !== currentUser.id && 
+          !tournament.club.administrators.some(admin => admin.id === currentUser.id)
+        ))) {
       throw new ForbiddenException('Недостаточно прав для обновления турнира');
     }
 
@@ -110,8 +142,10 @@ export class TournamentsService {
 
     // Проверяем права доступа
     if (currentUser.role !== UserRole.ADMIN && 
-        tournament.club.owner.id !== currentUser.id && 
-        !tournament.club.administrators.some(admin => admin.id === currentUser.id)) {
+        (!tournament.club || (
+          tournament.club.owner.id !== currentUser.id && 
+          !tournament.club.administrators.some(admin => admin.id === currentUser.id)
+        ))) {
       throw new ForbiddenException('Недостаточно прав для удаления турнира');
     }
 
@@ -123,13 +157,192 @@ export class TournamentsService {
 
     // Проверяем права доступа
     if (currentUser.role !== UserRole.ADMIN && 
-        tournament.club.owner.id !== currentUser.id && 
-        !tournament.club.administrators.some(admin => admin.id === currentUser.id)) {
+        (!tournament.club || (
+          tournament.club.owner.id !== currentUser.id && 
+          !tournament.club.administrators.some(admin => admin.id === currentUser.id)
+        ))) {
       throw new ForbiddenException('Недостаточно прав для обновления статуса турнира');
     }
 
     tournament.status = status;
     return this.tournamentsRepository.save(tournament);
+  }
+
+  async completeTournament(id: number, currentUser: User): Promise<Tournament> {
+    const tournament = await this.findOne(id);
+
+    // Проверяем права доступа
+    if (currentUser.role !== UserRole.ADMIN && 
+        (!tournament.club || (
+          tournament.club.owner.id !== currentUser.id && 
+          !tournament.club.administrators.some(admin => admin.id === currentUser.id)
+        ))) {
+      throw new ForbiddenException('Недостаточно прав для завершения турнира');
+    }
+
+    if (tournament.status !== TournamentStatus.ACTIVE) {
+      throw new BadRequestException('Можно завершить только активный турнир');
+    }
+
+    // Собираем статистику из всех игр турнира
+    await this.updatePlayerStatsFromTournament(tournament);
+
+    // Обновляем статус турнира
+    tournament.status = TournamentStatus.COMPLETED;
+    return this.tournamentsRepository.save(tournament);
+  }
+
+  private async updatePlayerStatsFromTournament(tournament: Tournament): Promise<void> {
+    // Получаем все игры турнира с игроками
+    const games = await this.gamesRepository.find({
+      where: { tournament: { id: tournament.id } },
+      relations: ['players', 'players.player']
+    });
+
+    if (games.length === 0) {
+      return; // Нет игр для обработки
+    }
+
+    // Собираем статистику по каждому игроку
+    const playerStats = new Map<number, {
+      totalGames: number;
+      totalWins: number;
+      totalPoints: number;
+      totalBonusPoints: number;
+      roleStats: Map<string, { gamesPlayed: number; gamesWon: number }>;
+    }>();
+
+    // Обрабатываем каждую игру
+    for (const game of games) {
+      for (const gamePlayer of game.players) {
+        const playerId = gamePlayer.player.id;
+        
+        if (!playerStats.has(playerId)) {
+          playerStats.set(playerId, {
+            totalGames: 0,
+            totalWins: 0,
+            totalPoints: 0,
+            totalBonusPoints: 0,
+            roleStats: new Map()
+          });
+        }
+
+        const stats = playerStats.get(playerId)!;
+        stats.totalGames += 1;
+        stats.totalPoints += gamePlayer.points || 0;
+
+        // Определяем, выиграл ли игрок (по результату игры)
+        const isWinner = this.isPlayerWinner(game, gamePlayer);
+        if (isWinner) {
+          stats.totalWins += 1;
+        }
+
+        stats.totalBonusPoints += gamePlayer.bonusPoints || 0;
+        stats.totalPoints -= gamePlayer.penaltyPoints || 0;
+
+        // Статистика по роли
+        const role = gamePlayer.role;
+        if (!stats.roleStats.has(role)) {
+          stats.roleStats.set(role, { gamesPlayed: 0, gamesWon: 0 });
+        }
+        
+        const roleStats = stats.roleStats.get(role)!;
+        roleStats.gamesPlayed += 1;
+        if (isWinner) {
+          roleStats.gamesWon += 1;
+        }
+      }
+    }
+
+    // Обновляем профили игроков
+    for (const [playerId, stats] of playerStats) {
+      await this.updatePlayerProfile(playerId, stats);
+    }
+
+    // Если это ELO турнир, обновляем ELO рейтинги по финальной турнирной таблице
+    if (tournament.type === TournamentType.ELO && tournament.stars) {
+      await this.updateEloRatingsFromTournamentTable(tournament, playerStats);
+    }
+  }
+
+  private async updateEloRatingsFromTournamentTable(
+    tournament: Tournament, 
+    playerStats: Map<number, any>
+  ): Promise<void> {
+    // Создаем финальную турнирную таблицу
+    const tournamentTable = Array.from(playerStats.entries()).map(([playerId, stats]) => ({
+      playerId,
+      totalPoints: stats.totalPoints + stats.totalBonusPoints - (stats.totalPenaltyPoints || 0),
+      stats
+    }));
+
+    // Сортируем по убыванию очков (1 место = максимальные очки)
+    tournamentTable.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    // Обновляем ELO рейтинги по местам в турнире
+    for (let i = 0; i < tournamentTable.length; i++) {
+      const { playerId } = tournamentTable[i];
+      const place = i + 1; // 1 место, 2 место, 3 место...
+      
+      // Получаем ELO очки по месту и звездам турнира
+      const eloPoints = getElo(tournament.stars!, tournamentTable.length, place);
+      
+      // Обновляем ELO рейтинг игрока
+      await this.updatePlayerEloRating(playerId, eloPoints);
+    }
+  }
+
+  private async updatePlayerEloRating(playerId: number, eloPoints: number): Promise<void> {
+    const player = await this.usersRepository.findOne({ where: { id: playerId } });
+    if (!player) return;
+
+    const newEloRating = Math.max(0, player.eloRating + eloPoints);
+    
+    await this.usersRepository.update(playerId, {
+      eloRating: newEloRating
+    });
+  }
+
+  private isPlayerWinner(game: Game, gamePlayer: GamePlayer): boolean {
+    // Логика определения победителя
+    // Можно расширить в зависимости от правил игры
+    if (game.result === 'MAFIA_WIN' && gamePlayer.role === 'MAFIA') {
+      return true;
+    }
+    if (game.result === 'CITIZEN_WIN' && gamePlayer.role === 'CITIZEN') {
+      return true;
+    }
+    // Добавить другие роли по необходимости
+    return false;
+  }
+
+  private async updatePlayerProfile(
+    playerId: number, 
+    stats: { 
+      totalGames: number; 
+      totalWins: number; 
+      totalPoints: number; 
+      totalBonusPoints: number;
+      roleStats: Map<string, { gamesPlayed: number; gamesWon: number }>; 
+    }
+  ): Promise<void> {
+    // Обновляем общую статистику пользователя
+    await this.usersRepository.update(playerId, {
+      totalGames: stats.totalGames,
+      totalWins: stats.totalWins,
+      totalPoints: stats.totalPoints,
+      totalBonusPoints: stats.totalBonusPoints
+    });
+
+    // Подготавливаем данные для bulk обновления статистики по ролям
+    const roleStatsArray = Array.from(stats.roleStats.entries()).map(([role, roleStats]) => ({
+      role: role as any, // PlayerRole
+      gamesPlayed: roleStats.gamesPlayed,
+      gamesWon: roleStats.gamesWon
+    }));
+
+    // Обновляем статистику по ролям
+    await this.userRoleStatsService.updateUserRoleStatsBulk(playerId, roleStatsArray);
   }
 
   async getAllTournaments(query: GetAllTournamentsQueryDto): Promise<GetAllTournamentsResponseDto> {
@@ -138,6 +351,8 @@ export class TournamentsService {
       limit = 10,
       search,
       status,
+      type,
+      stars,
       clubId,
       refereeId,
       sortBy = 'date',
@@ -155,6 +370,14 @@ export class TournamentsService {
     
     if (status) {
       whereConditions.status = status;
+    }
+
+    if (type) {
+      whereConditions.type = type;
+    }
+
+    if (stars) {
+      whereConditions.stars = stars;
     }
 
     if (clubId) {
@@ -187,9 +410,11 @@ export class TournamentsService {
       description: tournament.description,
       date: tournament.date,
       status: tournament.status,
-      clubId: tournament.club.id,
-      clubName: tournament.club.name,
-      clubLogo: tournament.club.logo,
+      type: tournament.type,
+      stars: tournament.stars,
+      clubId: tournament.club?.id,
+      clubName: tournament.club?.name,
+      clubLogo: tournament.club?.logo,
       refereeId: tournament.referee.id,
       refereeName: tournament.referee.nickname,
       refereeEmail: tournament.referee.email,

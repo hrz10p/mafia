@@ -1,5 +1,6 @@
-import { IsString, IsDateString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsNumber, IsEnum, Min, Max, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TournamentType } from '../tournament.entity';
 
 export class CreateTournamentDto {
   @ApiProperty({ description: 'Название турнира' })
@@ -15,9 +16,29 @@ export class CreateTournamentDto {
   @IsDateString()
   date: string;
 
-  @ApiProperty({ description: 'ID клуба' })
+  @ApiProperty({ 
+    description: 'Тип турнира', 
+    enum: TournamentType,
+    default: TournamentType.DEFAULT
+  })
+  @IsEnum(TournamentType)
+  type: TournamentType;
+
+  @ApiPropertyOptional({ 
+    description: 'Звездность турнира (от 1 до 6, только для ELO турниров)',
+    minimum: 1,
+    maximum: 6
+  })
+  @ValidateIf(o => o.type === TournamentType.ELO)
   @IsNumber()
-  clubId: number;
+  @Min(1)
+  @Max(6)
+  stars?: number;
+
+  @ApiPropertyOptional({ description: 'ID клуба (необязательно для ELO турниров)' })
+  @IsOptional()
+  @IsNumber()
+  clubId?: number;
 
   @ApiProperty({ description: 'ID судьи' })
   @IsNumber()

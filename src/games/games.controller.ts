@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Re
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { GamesService } from './games.service';
 import { CreateGameDto, CreateGamePlayerDto, UpdateGameDto, GenerateGamesDto, UpdateGameResultDto } from './dto';
-import { Game, GameStatus } from './game.entity';
+import { Game } from './game.entity';
 import { AuthGuard } from '../auth/authGuard.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -79,20 +79,6 @@ export class GamesController {
     @Request() req: { user: User }
   ) {
     return this.gamesService.update(+id, updateGameDto, req.user);
-  }
-
-  @Patch(':id/status')
-  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
-  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Обновить статус игры')
-  @ApiResponse({ status: 200, description: 'Статус игры обновлен', type: Game })
-  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
-  @ApiResponse({ status: 404, description: 'Игра не найдена' })
-  updateStatus(
-    @Param('id') id: string,
-    @Body('status') status: GameStatus,
-    @Request() req: { user: User }
-  ) {
-    return this.gamesService.updateStatus(+id, status, req.user);
   }
 
   @Patch(':id/results')

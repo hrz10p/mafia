@@ -10,6 +10,11 @@ export enum TournamentStatus {
   CANCELLED = 'CANCELLED'
 }
 
+export enum TournamentType {
+  DEFAULT = 'DEFAULT',
+  ELO = 'ELO'
+}
+
 @Entity()
 export class Tournament {
   @PrimaryGeneratedColumn()
@@ -31,7 +36,17 @@ export class Tournament {
   })
   status: TournamentStatus;
 
-  @ManyToOne(() => Club, { eager: true })
+  @Column({
+    type: 'enum',
+    enum: TournamentType,
+    default: TournamentType.DEFAULT
+  })
+  type: TournamentType;
+
+  @Column({ type: 'int', nullable: true })
+  stars: number; // От 1 до 6, только для ELO турниров
+
+  @ManyToOne(() => Club, { eager: true, nullable: true })
   club: Club;
 
   @ManyToOne(() => User, { eager: true })

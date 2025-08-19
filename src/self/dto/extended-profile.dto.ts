@@ -71,23 +71,13 @@ export class ExtendedUserProfileDto {
   @ApiProperty({ description: 'Общее количество очков' })
   totalPoints: number;
 
-  @ApiProperty({ description: 'Общее количество убийств' })
-  totalKills: number;
+  // ELO rating system
+  @ApiProperty({ description: 'ELO рейтинг', default: 0 })
+  eloRating: number;
 
-  @ApiProperty({ description: 'Общее количество смертей' })
-  totalDeaths: number;
-
-  @ApiProperty({ description: 'Игр за мафию' })
-  mafiaGames: number;
-
-  @ApiProperty({ description: 'Побед за мафию' })
-  mafiaWins: number;
-
-  @ApiProperty({ description: 'Игр за гражданского' })
-  citizenGames: number;
-
-  @ApiProperty({ description: 'Побед за гражданского' })
-  citizenWins: number;
+  // Additional points
+  @ApiProperty({ description: 'Общее количество бонусных очков' })
+  totalBonusPoints: number;
 
   @ApiProperty({ description: 'Дата регистрации' })
   createdAt: Date;

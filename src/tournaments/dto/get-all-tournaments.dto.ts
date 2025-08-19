@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsNumber, IsString, IsEnum, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TournamentStatus } from '../tournament.entity';
+import { TournamentStatus, TournamentType } from '../tournament.entity';
 
 export class GetAllTournamentsQueryDto {
   @ApiProperty({ 
@@ -43,6 +43,28 @@ export class GetAllTournamentsQueryDto {
   @IsOptional()
   @IsEnum(TournamentStatus)
   status?: TournamentStatus;
+
+  @ApiProperty({ 
+    description: 'Фильтр по типу турнира', 
+    enum: TournamentType, 
+    required: false 
+  })
+  @IsOptional()
+  @IsEnum(TournamentType)
+  type?: TournamentType;
+
+  @ApiProperty({ 
+    description: 'Фильтр по звездности (от 1 до 6)', 
+    required: false,
+    minimum: 1,
+    maximum: 6
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(6)
+  stars?: number;
 
   @ApiProperty({ 
     description: 'Фильтр по ID клуба', 
@@ -98,13 +120,19 @@ export class TournamentDto {
   @ApiProperty({ description: 'Статус турнира' })
   status: string;
 
-  @ApiProperty({ description: 'ID клуба' })
-  clubId: number;
+  @ApiProperty({ description: 'Тип турнира' })
+  type: string;
 
-  @ApiProperty({ description: 'Название клуба' })
-  clubName: string;
+  @ApiProperty({ description: 'Звездность турнира (для ELO турниров)' })
+  stars?: number;
 
-  @ApiProperty({ description: 'Логотип клуба' })
+  @ApiProperty({ description: 'ID клуба (если есть)' })
+  clubId?: number;
+
+  @ApiProperty({ description: 'Название клуба (если есть)' })
+  clubName?: string;
+
+  @ApiProperty({ description: 'Логотип клуба (если есть)' })
   clubLogo?: string;
 
   @ApiProperty({ description: 'ID судьи' })

@@ -94,6 +94,6 @@ export class SelfController {
     @User() user: { id: number },
     @Body() dto: { userId: number; role: UserRole },
   ): Promise<UserDTO> {
-    return this.selfService.updateUserRole(dto.userId, dto.role);
+    return this.selfService.updateUserRole(dto.userId, dto);
   }
 }

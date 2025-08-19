@@ -5,13 +5,6 @@ import { Season } from '../seasons/season.entity';
 import { Tournament } from '../tournaments/tournament.entity';
 import { GamePlayer } from './game-player.entity';
 
-export enum GameStatus {
-  SCHEDULED = 'SCHEDULED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
-}
-
 export enum GameResult {
   MAFIA_WIN = 'MAFIA_WIN',
   CITIZEN_WIN = 'CITIZEN_WIN',
@@ -29,21 +22,12 @@ export class Game {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'timestamp' })
-  scheduledDate: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  completedDate: Date;
-
   @Column({
     type: 'enum',
-    enum: GameStatus,
-    default: GameStatus.SCHEDULED
+    enum: GameResult,
+    nullable: true
   })
-  status: GameStatus;
-
-  @Column({ type: 'text', nullable: true })
-  result: string;
+  result: GameResult;
 
   @ManyToOne(() => Club, { eager: true })
   club: Club;
@@ -68,9 +52,6 @@ export class Game {
 
   @Column({ default: 0 })
   citizenCount: number;
-
-  @Column({ type: 'json', nullable: true })
-  resultTable: any;
 
   @CreateDateColumn()
   createdAt: Date;

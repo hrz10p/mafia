@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Game, GameStatus, GameResult } from './game.entity';
+import { Game, GameResult } from './game.entity';
 import { CreateGameDto } from './dto/create-game.dto';
 import { UpdateGameDto } from './dto/update-game.dto';
 import { UpdateGameResultDto } from './dto/update-game-result.dto';
@@ -126,17 +126,13 @@ export class GamesService {
 
         // Создаем игру
         const game = this.gamesRepository.create({
-          name: `Стол ${table} - Тур ${round} - Игра ${gameIndex}`,
+          name: `Игра #${gameIndex + 1}`,
           description: `Автоматически сгенерированная игра для турнира`,
-          scheduledDate: new Date(), // Можно настроить по расписанию
-          completedDate: null,
           club: tournament.club,
           referee: tournament.referee,
           season: null,
           tournament,
-          status: GameStatus.SCHEDULED,
           result: null,
-          resultTable: null,
           totalPlayers: gamePlayers.length,
         });
 
@@ -152,7 +148,6 @@ export class GamesService {
           gamePlayer.bonusPoints = 0;
           gamePlayer.penaltyPoints = 0;
           gamePlayer.seatIndex = index;
-          gamePlayer.notes = '';
           return gamePlayer;
         });
 
@@ -310,16 +305,11 @@ export class GamesService {
 
     const game = this.gamesRepository.create({
       name: createGameDto.name,
-      description: createGameDto.description,
-      scheduledDate: new Date(createGameDto.scheduledDate),
-      completedDate: new Date(), // Игра уже сыграна
       club,
       referee,
       season,
       tournament,
-      status: GameStatus.COMPLETED,
       result: createGameDto.result,
-      resultTable: createGameDto.resultTable,
       totalPlayers: createGameDto.players.length,
       mafiaCount: createGameDto.players.filter(
         (p) => p.role === PlayerRole.MAFIA,
@@ -339,7 +329,6 @@ export class GamesService {
       gamePlayer.points = playerDto.points || 0;
       gamePlayer.bonusPoints = playerDto.bonusPoints || 0;
       gamePlayer.penaltyPoints = playerDto.penaltyPoints || 0;
-      gamePlayer.notes = playerDto.notes;
       gamePlayer.game = savedGame;
       return gamePlayer;
     });
@@ -435,30 +424,6 @@ export class GamesService {
     await this.gamesRepository.remove(game);
   }
 
-  async updateStatus(
-    id: number,
-    status: GameStatus,
-    currentUser: User,
-  ): Promise<Game> {
-    const game = await this.findOne(id);
-
-    // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess =
-      currentUser.role === UserRole.ADMIN ||
-      game.club.owner.id === currentUser.id ||
-      game.club.administrators.some((admin) => admin.id === currentUser.id) ||
-      currentUser.role === UserRole.JUDGE;
-
-    if (!hasAccess) {
-      throw new ForbiddenException(
-        'Недостаточно прав для обновления статуса игры',
-      );
-    }
-
-    game.status = status;
-    return this.gamesRepository.save(game);
-  }
-
   async updateGameResults(
     id: number,
     updateGameResultDto: UpdateGameResultDto,
@@ -475,14 +440,6 @@ export class GamesService {
 
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для обновления результатов игры');
-    }
-
-    // Обновляем общие результаты игры
-    if (updateGameResultDto.result !== undefined) {
-      game.result = updateGameResultDto.result;
-    }
-    if (updateGameResultDto.resultTable !== undefined) {
-      game.resultTable = updateGameResultDto.resultTable;
     }
 
     const updatedGamePlayers: GamePlayer[] = [];
@@ -507,11 +464,14 @@ export class GamesService {
       gamePlayer.points = playerResult.points;
       gamePlayer.bonusPoints = playerResult.bonusPoints || 0;
       gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
-      gamePlayer.notes = playerResult.notes || '';
 
       const saved = await this.gamePlayersRepository.save(gamePlayer);
       updatedGamePlayers.push(saved);
     }
+
+    const savedGame = await this.findOne(id);
+    savedGame.result = updateGameResultDto.result;
+    await this.gamesRepository.save(savedGame);
 
     // Сохраняем обновленную игру
     return updatedGamePlayers;

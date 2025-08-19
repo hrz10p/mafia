@@ -10,48 +10,38 @@ import { UserDTO, UpdateUserProfileDto} from 'src/common/dto/user.dto';
 import { UserRole } from '../common/enums/roles.enum';
 import { UserSearchResultDto } from './dto/search-users.dto';
 import { GetAllPlayersQueryDto, GetAllPlayersResponseDto, PlayerDto } from './dto/get-all-players.dto';
-
+import { UserRoleStatsService } from './user-role-stats.service';
+import { UserDetailedStatsDto } from './dto/user-role-stats.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private userRoleStatsService: UserRoleStatsService,
   ) {}
 
   async createUser(dto: SignupDto): Promise<UserDTO> {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(dto.password, salt);
-    
+
     const user = this.userRepository.create({
       email: dto.email,
       password: hashedPassword,
       nickname: dto.nickname,
-      avatar: 'default-avatar.png',
-      confirmed: false,
-      role: UserRole.PLAYER,
     });
 
     const savedUser = await this.userRepository.save(user);
+
+    // Инициализируем статистику по ролям для нового пользователя
+    await this.userRoleStatsService.initializeUserRoleStats(savedUser.id);
+
     return UserMapper.toDTO(savedUser);
   }
 
-  async validateUser(dto: LoginDto): Promise<UserDTO | null> {
-    const user = await this.userRepository.findOne({
-      where: { email: dto.email },
-    });
-    if (user && (await bcrypt.compare(dto.password, user.password))) {
-      return UserMapper.toDTO(user);
-    }
-    return null;
-  }
-
   async confirmUser(email: string): Promise<UserDTO | null> {
-    const user = await this.userRepository.findOne({
-      where: { email },
-    });
-
-    if (!user || user.confirmed) {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
       return null;
     }
 
@@ -88,18 +78,18 @@ export class UsersService {
     return UserMapper.toDTO(user);
   }
 
-  async updateUserRole(userId: number, role: UserRole): Promise<UserDTO> {
+  async getUserByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email } });
+  }
+
+  async validateUser(dto: LoginDto): Promise<UserDTO | null> {
     const user = await this.userRepository.findOne({
-      where: { id: userId },
+      where: { email: dto.email },
     });
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
+    if (user && (await bcrypt.compare(dto.password, user.password))) {
+      return UserMapper.toDTO(user);
     }
-
-    user.role = role;
-    const updatedUser = await this.userRepository.save(user);
-    return UserMapper.toDTO(updatedUser);
+    return null;
   }
 
   async searchUsersByEmail(email: string, limit: number = 10): Promise<UserSearchResultDto[]> {
@@ -110,6 +100,25 @@ export class UsersService {
       relations: ['club'],
       take: limit,
       order: { email: 'ASC' },
+    });
+
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      name: user.nickname || user.email,
+      role: user.role,
+      club: user.club?.name,
+    }));
+  }
+
+  async searchUsers(query: string): Promise<UserSearchResultDto[]> {
+    const users = await this.userRepository.find({
+      where: [
+        { nickname: Like(`%${query}%`) },
+        { email: Like(`%${query}%`) },
+      ],
+      relations: ['club'],
+      take: 10,
     });
 
     return users.map(user => ({
@@ -137,7 +146,7 @@ export class UsersService {
     const whereConditions: any = {};
     
     if (search) {
-      whereConditions.nickname = Like(`%${search}%`);
+      whereConditions.nickname = Like(`%${query}%`);
     }
     
     if (role) {
@@ -145,10 +154,12 @@ export class UsersService {
     }
 
     // Получаем общее количество игроков
-    const total = await this.userRepository.count({ where: whereConditions });
+    const total = await this.userRepository.count({ 
+      where: whereConditions 
+    });
 
     // Получаем игроков с пагинацией и сортировкой
-    const users = await this.userRepository.find({
+    const players = await this.userRepository.find({
       where: whereConditions,
       relations: ['club'],
       skip,
@@ -157,32 +168,61 @@ export class UsersService {
     });
 
     // Преобразуем в DTO
-    const players: PlayerDto[] = users.map(user => ({
-      id: user.id,
-      email: user.email,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      role: user.role,
-      confirmed: user.confirmed,
-      clubName: user.club?.name,
-      totalGames: user.totalGames,
-      totalWins: user.totalWins,
-      totalPoints: user.totalPoints,
-      totalKills: user.totalKills,
-      totalDeaths: user.totalDeaths,
-      mafiaGames: user.mafiaGames,
-      mafiaWins: user.mafiaWins,
-      citizenGames: user.citizenGames,
-      citizenWins: user.citizenWins,
-      createdAt: user.createdAt,
+    const playersDto: PlayerDto[] = players.map(player => ({
+      id: player.id,
+      email: player.email,
+      nickname: player.nickname,
+      avatar: player.avatar,
+      role: player.role,
+      confirmed: player.confirmed,
+      clubName: player.club?.name,
+      totalGames: player.totalGames,
+      totalWins: player.totalWins,
+      totalPoints: player.totalPoints,
+      eloRating: player.eloRating,
+      totalBonusPoints: player.totalBonusPoints,
+      createdAt: player.createdAt,
     }));
 
     return {
-      players,
+      players: playersDto,
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getUserDetailedStats(userId: number): Promise<UserDetailedStatsDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roleStats']
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    const roleStats = await this.userRoleStatsService.getUserRoleStats(userId);
+
+    return {
+      id: user.id,
+      nickname: user.nickname,
+      generalStats: {
+        totalGames: user.totalGames,
+        totalWins: user.totalWins,
+        totalPoints: user.totalPoints,
+        eloRating: user.eloRating,
+        totalBonusPoints: user.totalBonusPoints,
+      },
+      roleStats: roleStats.map(stat => ({
+        id: stat.id,
+        role: stat.role,
+        gamesPlayed: stat.gamesPlayed,
+        gamesWon: stat.gamesWon,
+        createdAt: stat.createdAt,
+        updatedAt: stat.updatedAt,
+      }))
     };
   }
 }

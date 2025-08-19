@@ -12,12 +12,6 @@ export enum PlayerRole {
   BEAUTY = 'BEAUTY',
 }
 
-export enum PlayerStatus {
-  ALIVE = 'ALIVE',
-  DEAD = 'DEAD',
-  KICKED = 'KICKED'
-}
-
 @Entity()
 export class GamePlayer {
   @PrimaryGeneratedColumn()
@@ -34,13 +28,6 @@ export class GamePlayer {
     enum: PlayerRole
   })
   role: PlayerRole;
-
-  @Column({
-    type: 'enum',
-    enum: PlayerStatus,
-    default: PlayerStatus.ALIVE
-  })
-  status: PlayerStatus;
 
   // Позиция игрока за столом (0..playersPerGame-1)
   @Column({ type: 'int', nullable: true })
@@ -60,15 +47,6 @@ export class GamePlayer {
 
   @Column({ default: 0 })
   gamesWon: number;
-
-  @Column({ type: 'text', nullable: true })
-  notes: string;
-
-  @Column({ type: 'timestamp', nullable: true })
-  diedAt: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  kickedAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;

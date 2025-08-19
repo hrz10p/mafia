@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { UserRole } from '../common/enums/roles.enum';
 import { Club } from '../clubs/club.entity';
+import { UserRoleStats } from './user-role-stats.entity';
 
 @Entity()
 export class User {
@@ -42,23 +43,17 @@ export class User {
   @Column({ default: 0 })
   totalPoints: number;
 
-  @Column({ default: 0 })
-  totalKills: number;
+  // ELO rating system
+  @Column({ type: 'int', default: 0 })
+  eloRating: number;
 
-  @Column({ default: 0 })
-  totalDeaths: number;
+  // Additional points from tournaments
+  @Column({ type: 'int', default: 0 })
+  totalBonusPoints: number;
 
-  @Column({ default: 0 })
-  mafiaGames: number;
-
-  @Column({ default: 0 })
-  mafiaWins: number;
-
-  @Column({ default: 0 })
-  citizenGames: number;
-
-  @Column({ default: 0 })
-  citizenWins: number;
+  // Role-based statistics
+  @OneToMany(() => UserRoleStats, roleStats => roleStats.user, { cascade: true })
+  roleStats: UserRoleStats[];
 
   @CreateDateColumn()
   createdAt: Date;

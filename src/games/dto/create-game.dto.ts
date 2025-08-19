@@ -60,35 +60,9 @@ export class CreateGameDto {
   @IsEnum(GameResult)
   result: GameResult;
 
-  @ApiPropertyOptional({ 
-    description: 'JSON таблица результатов',
-    example: { 'round1': 'mafia_kill', 'round2': 'citizen_vote' }
-  })
-  @IsOptional()
-  resultTable?: any;
-
   @ApiProperty({ 
-    description: 'Список игроков с результатами', 
-    type: [CreateGamePlayerDto],
-    isArray: true,
-    example: [
-      {
-        playerId: 1,
-        role: 'MAFIA',
-        points: 10,
-        kills: 2,
-        deaths: 0,
-        notes: 'Отличная игра'
-      },
-      {
-        playerId: 2,
-        role: 'CITIZEN',
-        points: 5,
-        kills: 0,
-        deaths: 1,
-        notes: 'Погиб в первом раунде'
-      }
-    ]
+    description: 'Список игроков с их ролями',
+    type: [CreateGamePlayerDto]
   })
   @IsArray()
   @ValidateNested({ each: true })

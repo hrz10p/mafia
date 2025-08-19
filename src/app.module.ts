@@ -19,6 +19,7 @@ import { Season } from './seasons/season.entity';
 import { Game } from './games/game.entity';
 import { GamePlayer } from './games/game-player.entity';
 import { Tournament } from './tournaments/tournament.entity';
+import { UserRoleStats } from './users/user-role-stats.entity';
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { Tournament } from './tournaments/tournament.entity';
         username: configService.get<string>('POSTGRES_USER'),
         password: configService.get<string>('POSTGRES_PASSWORD'),
         database: configService.get<string>('POSTGRES_DATABASE'),
-        entities: [User, Club, ClubRequest, Season, Game, GamePlayer, Tournament],
+        entities: [User, Club, ClubRequest, Season, Game, GamePlayer, Tournament, UserRoleStats],
         synchronize: true,
         ssl: configService.get<boolean>('DB_SSL')
           ? { rejectUnauthorized: false }

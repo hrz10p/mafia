@@ -26,32 +26,33 @@ export class SelfService {
   }
 
   async getMyExtendedProfile(userId: number): Promise<ExtendedUserProfileDto> {
-    // Сначала получаем пользователя с базовой информацией
     const user = await this.userRepository.findOne({
       where: { id: userId },
+      relations: ['club'],
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error('Пользователь не найден');
     }
 
-    // Ищем клуб, где пользователь является владельцем
+    // Находим клуб, где пользователь является владельцем
     const ownedClub = await this.clubRepository.findOne({
       where: { owner: { id: userId } },
-      relations: ['owner', 'administrators'],
     });
 
-    // Ищем клуб, где пользователь является администратором
-    const adminClub = await this.clubRepository.findOne({
-      where: { administrators: { id: userId } },
-      relations: ['owner', 'administrators'],
-    });
+    // Находим клуб, где пользователь является администратором
+    const adminClub = await this.clubRepository
+      .createQueryBuilder('club')
+      .innerJoin('club.administrators', 'admin')
+      .where('admin.id = :userId', { userId })
+      .getOne();
 
-    // Ищем клуб, где пользователь является участником
-    const memberClub = await this.clubRepository.findOne({
-      where: { members: { id: userId } },
-      relations: ['owner', 'administrators'],
-    });
+    // Находим клуб, где пользователь является участником
+    const memberClub = await this.clubRepository
+      .createQueryBuilder('club')
+      .innerJoin('club.members', 'member')
+      .where('member.id = :userId', { userId })
+      .getOne();
 
     let clubInfo: ClubInfoDto | undefined;
 
@@ -105,12 +106,8 @@ export class SelfService {
       totalGames: user.totalGames,
       totalWins: user.totalWins,
       totalPoints: user.totalPoints,
-      totalKills: user.totalKills,
-      totalDeaths: user.totalDeaths,
-      mafiaGames: user.mafiaGames,
-      mafiaWins: user.mafiaWins,
-      citizenGames: user.citizenGames,
-      citizenWins: user.citizenWins,
+      eloRating: user.eloRating,
+      totalBonusPoints: user.totalBonusPoints,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -121,11 +118,20 @@ export class SelfService {
   }
 
   async updateAvatar(userId: number, file: Express.Multer.File): Promise<UserDTO> {
-    const avatarPath = await this.filesService.saveAvatar(userId, file);
-    return this.usersService.updateProfile(userId, { avatar: avatarPath });
+    const avatarFilename = await this.filesService.saveAvatar(userId, file);
+    
+    await this.userRepository.update(userId, { avatar: avatarFilename });
+    
+    return this.usersService.getUserById(userId);
   }
 
-  async updateUserRole(userId: number, role: UserRole): Promise<UserDTO> {
-    return this.usersService.updateUserRole(userId, role);
+  async updateUserRole(userId: number, dto: { userId: number; role: UserRole }): Promise<UserDTO> {
+    if (dto.userId !== userId) {
+      throw new Error('Можно изменять только свою роль');
+    }
+
+    await this.userRepository.update(dto.userId, { role: dto.role });
+    
+    return this.usersService.getUserById(dto.userId);
   }
 }

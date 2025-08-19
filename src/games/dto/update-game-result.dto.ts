@@ -1,6 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumber, IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
 import { PlayerRole } from '../game-player.entity';
+import { GameResult } from '../game.entity';
 
 export class UpdateGamePlayerResultDto {
   @ApiProperty({
@@ -43,34 +44,18 @@ export class UpdateGamePlayerResultDto {
   @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   penaltyPoints?: number;
 
-  @ApiProperty({
-    description: 'Заметки о игроке',
-    example: 'Хорошо играл в команде',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  notes?: string;
 }
 
 export class UpdateGameResultDto {
   @ApiProperty({
     description: 'Результат игры',
-    example: 'Победа мафии',
+    enum: GameResult,
+    example: GameResult.MAFIA_WIN,
     required: false,
   })
   @IsOptional()
-  @IsString()
-  result?: string;
-
-  @ApiProperty({
-    description: 'Таблица результатов',
-    example: 'Детальная таблица результатов',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  resultTable?: string;
+  @IsEnum(GameResult)
+  result?: GameResult;
 
   @ApiProperty({
     description: 'Массив результатов игроков',
