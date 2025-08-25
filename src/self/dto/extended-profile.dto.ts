@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRoleStatsDto } from '../../users/dto/user-role-stats.dto';
 
 export class ClubInfoDto {
   @ApiProperty({ description: 'ID клуба' })
@@ -78,6 +79,13 @@ export class ExtendedUserProfileDto {
   // Additional points
   @ApiProperty({ description: 'Общее количество бонусных очков' })
   totalBonusPoints: number;
+
+  @ApiProperty({ 
+    description: 'Статистика по ролям игрока',
+    type: [UserRoleStatsDto],
+    required: false
+  })
+  roleStats?: UserRoleStatsDto[];
 
   @ApiProperty({ description: 'Дата регистрации' })
   createdAt: Date;

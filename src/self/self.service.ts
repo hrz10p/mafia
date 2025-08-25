@@ -9,12 +9,14 @@ import { FilesService } from '../files/files.service';
 import { User } from '../users/user.entity';
 import { Club } from '../clubs/club.entity';
 import { ExtendedUserProfileDto, ClubInfoDto } from './dto/extended-profile.dto';
+import { UserRoleStatsService } from '../users/user-role-stats.service';
 
 @Injectable()
 export class SelfService {
   constructor(
     private readonly usersService: UsersService,
     private readonly filesService: FilesService,
+    private readonly userRoleStatsService: UserRoleStatsService,
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(Club)
@@ -34,6 +36,9 @@ export class SelfService {
     if (!user) {
       throw new Error('Пользователь не найден');
     }
+
+    // Получаем статистику по ролям
+    const roleStats = await this.userRoleStatsService.getUserRoleStats(userId);
 
     // Находим клуб, где пользователь является владельцем
     const ownedClub = await this.clubRepository.findOne({
@@ -108,6 +113,14 @@ export class SelfService {
       totalPoints: user.totalPoints,
       eloRating: user.eloRating,
       totalBonusPoints: user.totalBonusPoints,
+      roleStats: roleStats.map(stat => ({
+        id: stat.id,
+        role: stat.role,
+        gamesPlayed: stat.gamesPlayed,
+        gamesWon: stat.gamesWon,
+        createdAt: stat.createdAt,
+        updatedAt: stat.updatedAt,
+      })),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
