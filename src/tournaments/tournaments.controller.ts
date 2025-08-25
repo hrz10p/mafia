@@ -55,10 +55,7 @@ export class TournamentsController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard, RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
-  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить турнир по ID')
   @ApiResponse({ status: 200, description: 'Турнир найден', type: Tournament })
   @ApiResponse({ status: 404, description: 'Турнир не найден' })
   findOne(@Param('id') id: string) {

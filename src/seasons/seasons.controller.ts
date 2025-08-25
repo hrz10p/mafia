@@ -28,8 +28,6 @@ export class SeasonsController {
   }
 
   @Get()
-  @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
-  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить список сезонов с пагинацией')
   @ApiOperation({ 
     summary: 'Получить все сезоны',
     description: 'Возвращает список сезонов с пагинацией, фильтрацией и сортировкой. Поддерживает поиск по названию, фильтрацию по статусу, клубу, судье и сортировку по различным полям.'
@@ -48,8 +46,6 @@ export class SeasonsController {
   }
 
   @Get('simple')
-  @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
-  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить простой список сезонов')
   @ApiResponse({ status: 200, description: 'Список сезонов', type: [Season] })
   @ApiQuery({ name: 'clubId', required: false, description: 'ID клуба для фильтрации' })
   findAll(@Query('clubId') clubId?: string) {
@@ -57,8 +53,6 @@ export class SeasonsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
-  @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить сезон по ID')
   @ApiResponse({ status: 200, description: 'Сезон найден', type: Season })
   @ApiResponse({ status: 404, description: 'Сезон не найден' })
   findOne(@Param('id') id: string) {

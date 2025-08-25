@@ -30,10 +30,8 @@ export class ClubsController {
     return this.clubsService.createClubRequest(user.id, dto);
   }
 
-  @ApiRoles([UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить все клубы')
   @ApiResponse({ status: 200, description: 'Clubs retrieved successfully', type: [ClubDTO] })
   @Get()
-  @Roles(UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
   async getAllClubs(): Promise<ClubDTO[]> {
     return this.clubsService.getAllClubs();
   }
@@ -94,12 +92,10 @@ export class ClubsController {
     return this.clubsService.removeMember(clubId, userId);
   }
 
-  @ApiRoles([UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить клуб по ID')
   @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
   @ApiResponse({ status: 200, description: 'Club retrieved successfully', type: ClubDTO })
   @ApiResponse({ status: 404, description: 'Club not found' })
   @Get(':id')
-  @Roles(UserRole.PLAYER, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
   async getClub(@Param('id') id: number): Promise<ClubDTO> {
     return this.clubsService.getClubById(id);
   }
