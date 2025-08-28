@@ -47,11 +47,24 @@ export class GamesService {
     }
 
     // Проверяем права доступа
-    const hasAccess =
-      currentUser.role === UserRole.ADMIN ||
-      tournament.club.owner.id === currentUser.id ||
-      tournament.club.administrators.some((admin) => admin.id === currentUser.id) ||
-      currentUser.role === UserRole.JUDGE;
+    let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
+    
+    if (!hasAccess) {
+      // Проверяем, является ли пользователь владельцем клуба
+      if (tournament.club.owner.id === currentUser.id) {
+        hasAccess = true;
+      } else {
+        // Проверяем, является ли пользователь администратором клуба через прямой запрос
+        const isClubAdmin = await this.clubsRepository
+          .createQueryBuilder('club')
+          .innerJoin('club.administrators', 'admin')
+          .where('club.id = :clubId', { clubId: tournament.club.id })
+          .andWhere('admin.id = :userId', { userId: currentUser.id })
+          .getExists();
+        
+        hasAccess = isClubAdmin;
+      }
+    }
 
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для генерации игр');
@@ -263,11 +276,24 @@ export class GamesService {
     }
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess =
-      currentUser.role === UserRole.ADMIN ||
-      club.owner.id === currentUser.id ||
-      club.administrators.some((admin) => admin.id === currentUser.id) ||
-      currentUser.role === UserRole.JUDGE;
+    let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
+    
+    if (!hasAccess) {
+      // Проверяем, является ли пользователь владельцем клуба
+      if (club.owner.id === currentUser.id) {
+        hasAccess = true;
+      } else {
+        // Проверяем, является ли пользователь администратором клуба через прямой запрос
+        const isClubAdmin = await this.clubsRepository
+          .createQueryBuilder('club')
+          .innerJoin('club.administrators', 'admin')
+          .where('club.id = :clubId', { clubId: club.id })
+          .andWhere('admin.id = :userId', { userId: currentUser.id })
+          .getExists();
+        
+        hasAccess = isClubAdmin;
+      }
+    }
 
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для создания игры');
@@ -395,11 +421,24 @@ export class GamesService {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess =
-      currentUser.role === UserRole.ADMIN ||
-      game.club.owner.id === currentUser.id ||
-      game.club.administrators.some((admin) => admin.id === currentUser.id) ||
-      currentUser.role === UserRole.JUDGE;
+    let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
+    
+    if (!hasAccess) {
+      // Проверяем, является ли пользователь владельцем клуба
+      if (game.club.owner.id === currentUser.id) {
+        hasAccess = true;
+      } else {
+        // Проверяем, является ли пользователь администратором клуба через прямой запрос
+        const isClubAdmin = await this.clubsRepository
+          .createQueryBuilder('club')
+          .innerJoin('club.administrators', 'admin')
+          .where('club.id = :clubId', { clubId: game.club.id })
+          .andWhere('admin.id = :userId', { userId: currentUser.id })
+          .getExists();
+        
+        hasAccess = isClubAdmin;
+      }
+    }
 
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для обновления игры');
@@ -413,12 +452,22 @@ export class GamesService {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба или админ системы)
-    if (
-      currentUser.role !== UserRole.ADMIN &&
-      game.club.owner.id !== currentUser.id &&
-      !game.club.administrators.some((admin) => admin.id === currentUser.id)
-    ) {
-      throw new ForbiddenException('Недостаточно прав для удаления игры');
+    if (currentUser.role === UserRole.ADMIN) {
+      // Admin can do anything
+    } else if (game.club.owner.id === currentUser.id) {
+      // Club owner can do anything
+    } else {
+      // Check if user is club administrator
+      const isClubAdmin = await this.clubsRepository
+        .createQueryBuilder('club')
+        .innerJoin('club.administrators', 'admin')
+        .where('club.id = :clubId', { clubId: game.club.id })
+        .andWhere('admin.id = :userId', { userId: currentUser.id })
+        .getExists();
+      
+      if (!isClubAdmin) {
+        throw new ForbiddenException('Недостаточно прав для удаления игры');
+      }
     }
 
     await this.gamesRepository.remove(game);
@@ -432,11 +481,24 @@ export class GamesService {
     const game = await this.findOne(id);
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
-    const hasAccess =
-      currentUser.role === UserRole.ADMIN ||
-      game.club.owner.id === currentUser.id ||
-      game.club.administrators.some((admin) => admin.id === currentUser.id) ||
-      currentUser.id === game.referee.id;
+    let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.id === game.referee.id;
+    
+    if (!hasAccess) {
+      // Проверяем, является ли пользователь владельцем клуба
+      if (game.club.owner.id === currentUser.id) {
+        hasAccess = true;
+      } else {
+        // Проверяем, является ли пользователь администратором клуба через прямой запрос
+        const isClubAdmin = await this.clubsRepository
+          .createQueryBuilder('club')
+          .innerJoin('club.administrators', 'admin')
+          .where('club.id = :clubId', { clubId: game.club.id })
+          .andWhere('admin.id = :userId', { userId: currentUser.id })
+          .getExists();
+        
+        hasAccess = isClubAdmin;
+      }
+    }
 
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для обновления результатов игры');

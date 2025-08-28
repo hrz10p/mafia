@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany } from 'typeorm';
 import { UserRole } from '../common/enums/roles.enum';
 import { Club } from '../clubs/club.entity';
 import { UserRoleStats } from './user-role-stats.entity';
@@ -32,6 +32,12 @@ export class User {
 
   @ManyToOne(() => Club, club => club.members, { nullable: true })
   club: Club;
+
+  @ManyToMany(() => Club, club => club.administrators)
+  adminClubs: Club[];
+
+  @ManyToMany(() => Club, club => club.members)
+  memberClubs: Club[];
 
   // Player statistics
   @Column({ default: 0 })
