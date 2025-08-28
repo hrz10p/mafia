@@ -12,12 +12,12 @@ import { UserRole } from '../common/enums/roles.enum';
 
 @ApiTags('Seasons - Управление сезонами')
 @Controller('seasons')
-@UseGuards(AuthGuard, RolesGuard)
-@ApiBearerAuth()
 export class SeasonsController {
   constructor(private readonly seasonsService: SeasonsService) {}
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN)
   @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN], 'Создать новый сезон')
   @ApiResponse({ status: 201, description: 'Сезон успешно создан', type: Season })
@@ -60,6 +60,8 @@ export class SeasonsController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN)
   @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN], 'Обновить сезон')
   @ApiResponse({ status: 200, description: 'Сезон обновлен', type: Season })
@@ -74,6 +76,8 @@ export class SeasonsController {
   }
 
   @Patch(':id/status')
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN)
   @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN], 'Обновить статус сезона')
   @ApiResponse({ status: 200, description: 'Статус сезона обновлен', type: Season })
@@ -88,6 +92,8 @@ export class SeasonsController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN)
   @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN], 'Удалить сезон')
   @ApiResponse({ status: 200, description: 'Сезон удален' })
