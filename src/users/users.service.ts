@@ -12,6 +12,9 @@ import { UserSearchResultDto } from './dto/search-users.dto';
 import { GetAllPlayersQueryDto, GetAllPlayersResponseDto, PlayerDto } from './dto/get-all-players.dto';
 import { UserRoleStatsService } from './user-role-stats.service';
 import { UserDetailedStatsDto } from './dto/user-role-stats.dto';
+import { ExtendedUserProfileDto } from './dto/extended-profile.dto';
+import { Club } from 'src/clubs/club.entity';
+import { ClubInfoDto } from 'src/self/dto/club-info';
 
 @Injectable()
 export class UsersService {
@@ -19,6 +22,8 @@ export class UsersService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private userRoleStatsService: UserRoleStatsService,
+    @InjectRepository(Club)
+    private clubRepository: Repository<Club>,
   ) {}
 
   async createUser(dto: SignupDto): Promise<UserDTO> {
@@ -223,6 +228,100 @@ export class UsersService {
         createdAt: stat.createdAt,
         updatedAt: stat.updatedAt,
       }))
+    };
+  }
+
+  async getExtendedProfileForUser(userId: number): Promise<ExtendedUserProfileDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['club'],
+    });
+
+    if (!user) {
+      throw new Error('Пользователь не найден');
+    }
+
+    const roleStats = await this.userRoleStatsService.getUserRoleStats(userId);
+
+    const ownedClub = await this.clubRepository.findOne({
+      where: { owner: { id: userId } },
+    });
+
+    const adminClub = await this.clubRepository
+      .createQueryBuilder('club')
+      .innerJoin('club.administrators', 'admin')
+      .where('admin.id = :userId', { userId })
+      .getOne();
+
+    const memberClub = await this.clubRepository
+      .createQueryBuilder('club')
+      .innerJoin('club.members', 'member')
+      .where('member.id = :userId', { userId })
+      .getOne();
+
+    let clubInfo: ClubInfoDto | undefined;
+
+    if (ownedClub) {
+      clubInfo = {
+        id: ownedClub.id,
+        name: ownedClub.name,
+        logo: ownedClub.logo,
+        description: ownedClub.description,
+        city: ownedClub.city,
+        status: ownedClub.status,
+        userRole: 'owner',
+        joinedAt: ownedClub.createdAt,
+        socialMediaLink: ownedClub.socialMediaLink,
+      };
+    } else if (adminClub) {
+      clubInfo = {
+        id: adminClub.id,
+        name: adminClub.name,
+        logo: adminClub.logo,
+        description: adminClub.description,
+        city: adminClub.city,
+        status: adminClub.status,
+        userRole: 'administrator',
+        joinedAt: adminClub.createdAt,
+        socialMediaLink: adminClub.socialMediaLink,
+      };
+    } else if (memberClub) {
+      clubInfo = {
+        id: memberClub.id,
+        name: memberClub.name,
+        logo: memberClub.logo,
+        description: memberClub.description,
+        city: memberClub.city,
+        status: memberClub.status,
+        userRole: 'member',
+        joinedAt: memberClub.createdAt,
+        socialMediaLink: memberClub.socialMediaLink,
+      };
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      role: user.role,
+      confirmed: user.confirmed,
+      club: clubInfo,
+      totalGames: user.totalGames,
+      totalWins: user.totalWins,
+      totalPoints: user.totalPoints,
+      eloRating: user.eloRating,
+      totalBonusPoints: user.totalBonusPoints,
+      roleStats: roleStats.map(stat => ({
+        id: stat.id,
+        role: stat.role,
+        gamesPlayed: stat.gamesPlayed,
+        gamesWon: stat.gamesWon,
+        createdAt: stat.createdAt,
+        updatedAt: stat.updatedAt,
+      })),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 }

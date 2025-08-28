@@ -9,7 +9,7 @@ import { UserDTO } from '../common/dto/user.dto';
 import { UserRole } from '../common/enums/roles.enum';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
-import { ExtendedUserProfileDto } from './dto/extended-profile.dto';
+import { ExtendedUserProfileDto } from '../users/dto/extended-profile.dto';
 
 @ApiTags('Self')
 @ApiBearerAuth()

@@ -50,4 +50,13 @@ export class UsersController {
   getPortfolioByUserId(@Param('userId') userId: number) {
     return this.usersService.getUserById(userId);
   }
+
+  @ApiOperation({ summary: 'Get extended profile for user' })
+  @ApiParam({ name: 'userId', type: 'number', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Successfully retrieved extended profile' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @Get('extended-profile/:userId')
+  getExtendedProfileForUser(@Param('userId') userId: number) {
+    return this.usersService.getExtendedProfileForUser(userId);
+  }
 }
