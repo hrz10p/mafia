@@ -436,7 +436,7 @@ export class GamesService {
       currentUser.role === UserRole.ADMIN ||
       game.club.owner.id === currentUser.id ||
       game.club.administrators.some((admin) => admin.id === currentUser.id) ||
-      currentUser.role === UserRole.JUDGE;
+      currentUser.id === game.referee.id;
 
     if (!hasAccess) {
       throw new ForbiddenException('Недостаточно прав для обновления результатов игры');

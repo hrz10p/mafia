@@ -82,8 +82,8 @@ export class GamesController {
   }
 
   @Patch(':id/results')
-  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
-  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Обновить результаты игры')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN, UserRole.PLAYER)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN, UserRole.PLAYER], 'Обновить результаты игры')
   @ApiOperation({ summary: 'Обновить результаты игры и статистику игроков' })
   @ApiResponse({ status: 200, description: 'Результаты игры обновлены', type: [GamePlayer] })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
