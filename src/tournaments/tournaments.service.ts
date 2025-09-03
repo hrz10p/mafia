@@ -180,7 +180,7 @@ export class TournamentsService {
       throw new ForbiddenException('Недостаточно прав для завершения турнира');
     }
 
-    if (tournament.status !== TournamentStatus.ACTIVE) {
+    if (tournament.status === TournamentStatus.COMPLETED) {
       throw new BadRequestException('Можно завершить только активный турнир');
     }
 
