@@ -46,7 +46,7 @@ export class User {
   @Column({ default: 0 })
   totalWins: number;
 
-  @Column({ default: 0 })
+  @Column({ type: 'float', default: 0 })
   totalPoints: number;
 
   // ELO rating system
@@ -54,7 +54,7 @@ export class User {
   eloRating: number;
 
   // Additional points from tournaments
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'float', default: 0 })
   totalBonusPoints: number;
 
   // Role-based statistics
