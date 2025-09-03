@@ -39,6 +39,22 @@ export class GamesController {
     return this.gamesService.generateGames(generateGamesDto, req.user);
   }
 
+  @Post('generate-final')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Генерировать финальные игры для турнира')
+  @ApiResponse({ status: 201, description: 'Финальные игры успешно сгенерированы', type: [Game] })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  @ApiResponse({ status: 404, description: 'Турнир не найден' })
+  generateFinalGames(
+    @Query('tournamentId') tournamentId: string, 
+    @Query('tablesCount') tablesCount: string,
+    @Query('playersPerGame') playersPerGame: string,
+    @Query('roundsCount') roundsCount: string,
+    @Query('totalGames') totalGames: string,
+    @Request() req: { user: User }) {
+    return this.gamesService.generateFinalGames(tournamentId, tablesCount, playersPerGame, roundsCount, totalGames, req.user);
+  }
+
   @Get()
   @Roles(UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN)
   @ApiRoles([UserRole.PLAYER, UserRole.JUDGE, UserRole.CLUB_ADMIN, UserRole.CLUB_OWNER, UserRole.ADMIN], 'Получить список игр')

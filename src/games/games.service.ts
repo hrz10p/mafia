@@ -16,6 +16,7 @@ import { Season } from '../seasons/season.entity';
 import { Tournament } from '../tournaments/tournament.entity';
 import { GamePlayer, PlayerRole } from './game-player.entity';
 import { UserRole } from '../common/enums/roles.enum';
+import { RatingsService } from '../ratings/ratings.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class GamesService {
     private tournamentsRepository: Repository<Tournament>,
     @InjectRepository(GamePlayer)
     private gamePlayersRepository: Repository<GamePlayer>,
+    private ratingsService: RatingsService,
   ) {}
 
   async generateGames(generateGamesDto: GenerateGamesDto, currentUser: User): Promise<Game[]> {
@@ -175,6 +177,162 @@ export class GamesService {
           playerRounds.get(player.id)!.add(round);
 
           // Удаляем игрока из доступных для этого тура
+          const playerIndex = shuffledPlayers.findIndex((p) => p.id === player.id);
+          if (playerIndex !== -1) {
+            shuffledPlayers.splice(playerIndex, 1);
+          }
+        });
+
+        games.push(savedGame);
+        gameIndex++;
+      }
+    }
+
+    return games;
+  }
+
+  async generateFinalGames(tournamentId: string, tablesCount: string, playersPerGame: string, roundsCount: string, totalGames: string, currentUser: User): Promise<Game[]> {
+    // Parse parameters
+    const tournamentIdNum = +tournamentId;
+    const tablesCountNum = +tablesCount;
+    const playersPerGameNum = +playersPerGame;
+    const roundsCountNum = +roundsCount;
+    const totalGamesNum = +totalGames;
+
+    // Get tournament with relations
+    const tournament = await this.tournamentsRepository.findOne({
+      where: { id: tournamentIdNum },
+      relations: ['club', 'club.owner', 'club.administrators'],
+    });
+
+    if (!tournament) {
+      throw new NotFoundException('Турнир не найден');
+    }
+
+    // Check access permissions (same as generateGames)
+    let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
+    
+    if (!hasAccess) {
+      if (tournament.club.owner.id === currentUser.id) {
+        hasAccess = true;
+      } else {
+        const isClubAdmin = await this.clubsRepository
+          .createQueryBuilder('club')
+          .innerJoin('club.administrators', 'admin')
+          .where('club.id = :clubId', { clubId: tournament.club.id })
+          .andWhere('admin.id = :userId', { userId: currentUser.id })
+          .getExists();
+        
+        hasAccess = isClubAdmin;
+      }
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('Недостаточно прав для генерации финальных игр');
+    }
+
+    // Get tournament leaderboard to find top N players
+    const tournamentRating = await this.ratingsService.getTournamentRating(tournamentIdNum);
+    const topPlayers = tournamentRating.players.slice(0, playersPerGameNum);
+
+    if (topPlayers.length < playersPerGameNum) {
+      throw new ForbiddenException(
+        `Недостаточно игроков в турнире. Нужно минимум ${playersPerGameNum}, а доступно ${topPlayers.length}`,
+      );
+    }
+
+    // Get full User objects for the top players
+    const playerIds = topPlayers.map(p => p.playerId);
+    const players = await this.usersRepository.findByIds(playerIds);
+
+    // Validate that we have enough players
+    if (players.length < playersPerGameNum) {
+      throw new ForbiddenException('Не удалось найти всех игроков из топ-листа');
+    }
+
+    // Calculate total games M = rounds * tables
+    const calculatedTotalGames = roundsCountNum * tablesCountNum;
+    if (totalGamesNum !== calculatedTotalGames) {
+      throw new ForbiddenException(
+        `Несоответствие параметров: rounds (${roundsCountNum}) * tables (${tablesCountNum}) = ${calculatedTotalGames}, но указано totalGames = ${totalGamesNum}`,
+      );
+    }
+
+    // Generate games using the same logic as generateGames
+    const games: Game[] = [];
+    const playerGameCount = new Map<number, number>();
+    const playerSeatIndices = new Map<number, Set<number>>();
+    const playerRounds = new Map<number, Set<number>>();
+
+    // Initialize counters
+    players.forEach(player => {
+      playerGameCount.set(player.id, 0);
+      playerSeatIndices.set(player.id, new Set());
+      playerRounds.set(player.id, new Set());
+    });
+
+    let gameIndex = 1;
+    for (let round = 1; round <= roundsCountNum; round++) {
+      // Create copy of players for current round
+      const availablePlayersForRound = players.filter(player => {
+        const gameCount = playerGameCount.get(player.id)!;
+        const roundsPlayed = playerRounds.get(player.id)!;
+        // Player can play if they have less than 6 games and haven't played in this round
+        return gameCount < 6 && !roundsPlayed.has(round);
+      });
+
+      // Shuffle players for randomness
+      const shuffledPlayers = [...availablePlayersForRound].sort(() => Math.random() - 0.5);
+
+      for (let table = 1; table <= tablesCountNum; table++) {
+        // Select players for current game considering seat uniqueness
+        const gamePlayers = this.assignPlayersToTable(
+          shuffledPlayers,
+          playersPerGameNum,
+          playerGameCount,
+          playerSeatIndices,
+          playerRounds,
+          table,
+          round,
+        );
+
+        // Create game
+        const game = this.gamesRepository.create({
+          name: `Финальная игра #${gameIndex}`,
+          description: `Автоматически сгенерированная финальная игра для турнира`,
+          club: tournament.club,
+          referee: tournament.referee,
+          season: null,
+          tournament,
+          result: null,
+          totalPlayers: gamePlayers.length,
+        });
+
+        const savedGame = await this.gamesRepository.save(game);
+
+        // Create player records
+        const gamePlayerEntities = gamePlayers.map((player, index) => {
+          const gamePlayer = new GamePlayer();
+          gamePlayer.game = savedGame;
+          gamePlayer.player = player;
+          gamePlayer.role = PlayerRole.CITIZEN; // Default citizen, can be randomized
+          gamePlayer.points = 0;
+          gamePlayer.bonusPoints = 0;
+          gamePlayer.penaltyPoints = 0;
+          gamePlayer.seatIndex = index;
+          return gamePlayer;
+        });
+
+        await this.gamePlayersRepository.save(gamePlayerEntities);
+
+        // Update counters
+        gamePlayers.forEach((player, position) => {
+          playerGameCount.set(player.id, playerGameCount.get(player.id)! + 1);
+          // Mark global seatIndex
+          playerSeatIndices.get(player.id)!.add(position);
+          playerRounds.get(player.id)!.add(round);
+
+          // Remove player from available for this round
           const playerIndex = shuffledPlayers.findIndex((p) => p.id === player.id);
           if (playerIndex !== -1) {
             shuffledPlayers.splice(playerIndex, 1);
