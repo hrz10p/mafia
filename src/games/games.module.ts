@@ -10,12 +10,14 @@ import { Season } from '../seasons/season.entity';
 import { Tournament } from '../tournaments/tournament.entity';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
+import { RatingsModule } from '../ratings/ratings.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Game, GamePlayer, User, Club, Season, Tournament]),
     AuthModule,
     UsersModule,
+    RatingsModule,
   ],
   controllers: [GamesController],
   providers: [GamesService],
