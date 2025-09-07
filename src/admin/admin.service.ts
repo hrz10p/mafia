@@ -129,6 +129,28 @@ export class AdminService {
     return this.usersRepository.save(user);
   }
 
+  async deleteUser(userId: number): Promise<{ message: string; deletedUser: { id: number; nickname: string } }> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    const userInfo = {
+      id: user.id,
+      nickname: user.nickname,
+    };
+
+    await this.usersRepository.remove(user);
+
+    return {
+      message: 'Пользователь успешно удален',
+      deletedUser: userInfo,
+    };
+  }
+
   // Управление клубами
   async getAllClubs(): Promise<Club[]> {
     return this.clubsRepository.find({
@@ -147,5 +169,18 @@ export class AdminService {
     }
 
     await this.clubsRepository.remove(club);
+  }
+
+  // Reset all players ELO to 1000
+  async resetAllPlayersElo(): Promise<{ message: string; affectedUsers: number }> {
+    const result = await this.usersRepository.update(
+      {},
+      { eloRating: 1000 }
+    );
+
+    return {
+      message: 'All players ELO has been reset to 1000',
+      affectedUsers: result.affected || 0,
+    };
   }
 } 

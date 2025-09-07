@@ -31,5 +31,11 @@ export class ClubInfoDto {
 
   @ApiProperty({ description: 'Ссылка на социальные сети клуба' })
   socialMediaLink?: string;
+
+  @ApiProperty({ 
+    description: 'ELO рейтинг клуба (среднее значение всех участников)',
+    example: 1500
+  })
+  elo: number;
 }
 

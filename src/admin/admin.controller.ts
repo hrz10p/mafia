@@ -78,6 +78,34 @@ export class AdminController {
     return this.adminService.updateUserRole(+id, body.role);
   }
 
+  @Delete('users/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiRoles([UserRole.ADMIN], 'Удалить пользователя')
+  @ApiOperation({ summary: 'Удалить пользователя' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Пользователь успешно удален',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Пользователь успешно удален' },
+        deletedUser: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 123 },
+            nickname: { type: 'string', example: 'player123' }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  async deleteUser(@Param('id') id: string) {
+    return this.adminService.deleteUser(+id);
+  }
+
   // Управление клубами
   @Get('clubs')
   @Roles(UserRole.ADMIN)
@@ -95,5 +123,27 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'Клуб удален' })
   async deleteClub(@Param('id') id: string) {
     return this.adminService.deleteClub(+id);
+  }
+
+  // Reset all players ELO
+  @Post('reset-elo')
+  @Roles(UserRole.ADMIN)
+  @ApiRoles([UserRole.ADMIN], 'Сбросить ELO всех игроков')
+  @ApiOperation({ summary: 'Сбросить ELO всех игроков до 1000' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'ELO всех игроков сброшен',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'All players ELO has been reset to 1000' },
+        affectedUsers: { type: 'number', example: 150 }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  async resetAllPlayersElo() {
+    return this.adminService.resetAllPlayersElo();
   }
 } 

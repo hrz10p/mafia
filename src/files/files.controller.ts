@@ -25,4 +25,18 @@ export class FilesController {
     const filePath = path.join(process.cwd(), 'uploads', 'avatars', filename);
     return res.sendFile(filePath);
   }
+
+  @ApiOperation({ summary: 'Get club avatar by filename' })
+  @ApiParam({ name: 'filename', type: 'string', description: 'Club avatar filename' })
+  @ApiResponse({ status: 200, description: 'Club avatar file' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  @Get('club-avatars/:filename')
+  async serveClubAvatar(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ) {
+    const filePath = path.join(process.cwd(), 'uploads', 'avatars', filename);
+    return res.sendFile(filePath);
+  }
 } 

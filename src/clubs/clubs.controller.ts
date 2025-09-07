@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ClubsService } from './clubs.service';
 import { CreateClubDto, UpdateClubDto, ClubDTO, CreateJoinRequestDto, CreateClubRequestDto, ClubRequestDTO } from './dto';
 import { AuthGuard } from '../auth/authGuard.guard';
@@ -6,7 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
 import { User } from '../common/decorators/user.decorator';
-import { ApiTags, ApiResponse, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiResponse, ApiParam, ApiBody, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { ApiRoles } from '../common/decorators/api-roles.decorator';
 
 @ApiTags('Clubs - Управление клубами')
@@ -191,5 +192,38 @@ export class ClubsController {
   @Roles(UserRole.PLAYER)
   async getMyJoinRequests(@User() user: { id: number }): Promise<ClubRequestDTO[]> {
     return this.clubsService.getUserJoinRequests(user.id);
+  }
+
+  @ApiRoles([UserRole.CLUB_OWNER], 'Загрузить аватар клуба')
+  @ApiOperation({ summary: 'Upload club avatar' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiParam({ name: 'id', type: 'number', description: 'Club ID' })
+  @ApiResponse({ status: 200, description: 'Club avatar uploaded successfully', type: ClubDTO })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Only club owner can upload avatar' })
+  @ApiResponse({ status: 404, description: 'Club not found' })
+  @Post(':id/avatar')
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.CLUB_OWNER)
+  @UseInterceptors(FileInterceptor('avatar'))
+  async uploadClubAvatar(
+    @Param('id') clubId: number,
+    @User() user: { id: number },
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ClubDTO> {
+    return this.clubsService.updateClubAvatar(clubId, user.id, file);
   }
 } 

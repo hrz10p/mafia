@@ -9,6 +9,7 @@ import { CreateJoinRequestDto, CreateClubRequestDto, ClubRequestDTO } from './dt
 import { UserRole } from '../common/enums/roles.enum';
 import { UsersService } from '../users/users.service';
 import { UserMapper } from 'src/common/utils/mapper';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class ClubsService {
@@ -20,6 +21,7 @@ export class ClubsService {
     @InjectRepository(ClubRequest)
     private clubRequestRepository: Repository<ClubRequest>,
     private usersService: UsersService,
+    private filesService: FilesService,
   ) {}
 
   async createClubRequest(userId: number, dto: CreateClubRequestDto): Promise<ClubDTO> {
@@ -225,6 +227,29 @@ export class ClubsService {
     return this.toDTO(savedClub);
   }
 
+  async updateClubAvatar(clubId: number, userId: number, file: Express.Multer.File): Promise<ClubDTO> {
+    const club = await this.clubRepository.findOne({ 
+      where: { id: clubId },
+      relations: ['owner', 'members', 'administrators']
+    });
+
+    if (!club) {
+      throw new NotFoundException('Club not found');
+    }
+
+    // Check if user is the club owner
+    if (club.owner.id !== userId) {
+      throw new ForbiddenException('Only club owner can update club avatar');
+    }
+
+    const avatarFilename = await this.filesService.saveClubAvatar(clubId, file);
+    
+    club.logo = avatarFilename;
+    const savedClub = await this.clubRepository.save(club);
+    
+    return this.toDTO(savedClub);
+  }
+
   async createJoinRequest(userId: number, clubId: number, dto: CreateJoinRequestDto): Promise<ClubRequestDTO> {
     const [user, club] = await Promise.all([
       this.userRepository.findOne({ where: { id: userId } }),
@@ -379,6 +404,8 @@ export class ClubsService {
   }
 
   private toDTO(club: Club): ClubDTO {
+    const elo = this.calculateClubElo(club);
+    
     return {
       id: club.id,
       name: club.name,
@@ -390,9 +417,40 @@ export class ClubsService {
       owner: UserMapper.toDTO(club.owner),
       administrators: club.administrators?.map(admin => UserMapper.toDTO(admin)) || [],
       members: club.members?.map(member => UserMapper.toDTO(member)) || [],
+      elo,
       createdAt: club.createdAt,
       updatedAt: club.updatedAt,
     };
+  }
+
+  private calculateClubElo(club: Club): number {
+    // Get all unique members (owner + administrators + members)
+    const allMembers = new Set<User>();
+    
+    // Add owner
+    if (club.owner) {
+      allMembers.add(club.owner);
+    }
+    
+    // Add administrators
+    if (club.administrators) {
+      club.administrators.forEach(admin => allMembers.add(admin));
+    }
+    
+    // Add members
+    if (club.members) {
+      club.members.forEach(member => allMembers.add(member));
+    }
+    
+    // Convert Set to Array and calculate average ELO
+    const membersArray = Array.from(allMembers);
+    
+    if (membersArray.length === 0) {
+      return 0; // Default ELO if no members
+    }
+    
+    const totalElo = membersArray.reduce((sum, member) => sum + (member.eloRating || 0), 0);
+    return Math.round(totalElo / membersArray.length);
   }
 
   private toRequestDTO(request: ClubRequest): ClubRequestDTO {

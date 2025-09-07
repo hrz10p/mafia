@@ -153,6 +153,12 @@ export class ClubDTO {
   members: UserDTO[];
 
   @ApiProperty({
+    example: 1500,
+    description: 'Club ELO rating (average of all members)',
+  })
+  elo: number;
+
+  @ApiProperty({
     example: '2024-03-14T12:00:00Z',
     description: 'Club creation date',
   })

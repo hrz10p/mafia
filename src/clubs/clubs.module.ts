@@ -8,11 +8,13 @@ import { User } from '../users/user.entity';
 import { UsersModule } from '../users/users.module';
 import { AuthGuard } from '../auth/authGuard.guard';
 import { AuthModule } from '../auth/auth.module';
+import { FilesModule } from '../files/files.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Club, User, ClubRequest]),
     UsersModule,
     AuthModule,
+    FilesModule,
   ],
   controllers: [ClubsController],
   providers: [ClubsService, AuthGuard],

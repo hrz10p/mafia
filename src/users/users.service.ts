@@ -151,7 +151,7 @@ export class UsersService {
     const whereConditions: any = {};
     
     if (search) {
-      whereConditions.nickname = Like(`%${query}%`);
+      whereConditions.nickname = Like(`%${search}%`);
     }
     
     if (role) {
@@ -262,6 +262,7 @@ export class UsersService {
     let clubInfo: ClubInfoDto | undefined;
 
     if (ownedClub) {
+      const elo = this.calculateClubElo(ownedClub);
       clubInfo = {
         id: ownedClub.id,
         name: ownedClub.name,
@@ -272,8 +273,10 @@ export class UsersService {
         userRole: 'owner',
         joinedAt: ownedClub.createdAt,
         socialMediaLink: ownedClub.socialMediaLink,
+        elo,
       };
     } else if (adminClub) {
+      const elo = this.calculateClubElo(adminClub);
       clubInfo = {
         id: adminClub.id,
         name: adminClub.name,
@@ -284,8 +287,10 @@ export class UsersService {
         userRole: 'administrator',
         joinedAt: adminClub.createdAt,
         socialMediaLink: adminClub.socialMediaLink,
+        elo,
       };
     } else if (memberClub) {
+      const elo = this.calculateClubElo(memberClub);
       clubInfo = {
         id: memberClub.id,
         name: memberClub.name,
@@ -296,6 +301,7 @@ export class UsersService {
         userRole: 'member',
         joinedAt: memberClub.createdAt,
         socialMediaLink: memberClub.socialMediaLink,
+        elo,
       };
     }
 
@@ -323,5 +329,35 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  }
+
+  private calculateClubElo(club: any): number {
+    // Get all unique members (owner + administrators + members)
+    const allMembers = new Set<any>();
+    
+    // Add owner
+    if (club.owner) {
+      allMembers.add(club.owner);
+    }
+    
+    // Add administrators
+    if (club.administrators) {
+      club.administrators.forEach(admin => allMembers.add(admin));
+    }
+    
+    // Add members
+    if (club.members) {
+      club.members.forEach(member => allMembers.add(member));
+    }
+    
+    // Convert Set to Array and calculate average ELO
+    const membersArray = Array.from(allMembers);
+    
+    if (membersArray.length === 0) {
+      return 0; // Default ELO if no members
+    }
+    
+    const totalElo = membersArray.reduce((sum, member) => sum + (member.eloRating || 0), 0);
+    return Math.round(totalElo / membersArray.length);
   }
 }

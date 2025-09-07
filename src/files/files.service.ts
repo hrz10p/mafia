@@ -59,6 +59,38 @@ export class FilesService {
     }
   }
 
+  async saveClubAvatar(clubId: number, file: Express.Multer.File): Promise<string> {
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('File must be an image');
+    }
+
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `club_avatar_${clubId}${fileExtension}`;
+    const filePath = path.join(this.uploadPath, fileName);
+
+    // Delete old club avatar if exists
+    await this.deleteOldClubAvatar(clubId);
+
+    await writeFile(filePath, file.buffer);
+    return fileName;
+  }
+
+  private async deleteOldClubAvatar(clubId: number) {
+    try {
+      const files = await fs.promises.readdir(this.uploadPath);
+      const oldAvatar = files.find(file => file.startsWith(`club_avatar_${clubId}`));
+      
+      if (oldAvatar) {
+        await unlink(path.join(this.uploadPath, oldAvatar));
+      }
+    } catch (error) {
+      // Ignore errors if file doesn't exist
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+
   getDefaultAvatarPath(): string {
     return '/uploads/avatars/default-avatar.png';
   }
