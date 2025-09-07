@@ -173,10 +173,11 @@ export class AdminService {
 
   // Reset all players ELO to 1000
   async resetAllPlayersElo(): Promise<{ message: string; affectedUsers: number }> {
-    const result = await this.usersRepository.update(
-      {},
-      { eloRating: 1000 }
-    );
+    const result = await this.usersRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ eloRating: 1000 })
+      .execute();
 
     return {
       message: 'All players ELO has been reset to 1000',
