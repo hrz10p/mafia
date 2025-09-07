@@ -6,9 +6,7 @@ import * as path from 'path';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Files')
-@ApiBearerAuth()
 @Controller('files')
-@UseGuards(AuthGuard)
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
