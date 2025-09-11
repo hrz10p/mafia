@@ -8,6 +8,7 @@ import { ClubRequest, ClubRequestStatus } from '../clubs/club-request.entity';
 import { Season } from '../seasons/season.entity';
 import { Game } from '../games/game.entity';
 import { Tournament } from '../tournaments/tournament.entity';
+import { AdminUpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -183,5 +184,27 @@ export class AdminService {
       message: 'All players ELO has been reset to 1000',
       affectedUsers: result.affected || 0,
     };
+  }
+
+  // Update basic user profile (email, nickname) without touching stats
+  async updateUserProfileBasic(userId: number, dto: AdminUpdateUserDto): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const exists = await this.usersRepository.findOne({ where: { email: dto.email } });
+      if (exists) {
+        throw new ForbiddenException('Email уже используется другим пользователем');
+      }
+      user.email = dto.email;
+    }
+
+    if (dto.nickname) {
+      user.nickname = dto.nickname;
+    }
+
+    return this.usersRepository.save(user);
   }
 } 

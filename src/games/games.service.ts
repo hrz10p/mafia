@@ -160,6 +160,8 @@ export class GamesService {
           gamePlayer.player = player;
           gamePlayer.role = PlayerRole.CITIZEN; // По умолчанию гражданин, можно рандомизировать
           gamePlayer.points = 0;
+          gamePlayer.lh = 0;
+          gamePlayer.ci = 0;
           gamePlayer.bonusPoints = 0;
           gamePlayer.penaltyPoints = 0;
           gamePlayer.seatIndex = index;
@@ -317,6 +319,8 @@ export class GamesService {
           gamePlayer.player = player;
           gamePlayer.role = PlayerRole.CITIZEN; // Default citizen, can be randomized
           gamePlayer.points = 0;
+          gamePlayer.lh = 0;
+          gamePlayer.ci = 0;
           gamePlayer.bonusPoints = 0;
           gamePlayer.penaltyPoints = 0;
           gamePlayer.seatIndex = index;
@@ -511,6 +515,8 @@ export class GamesService {
       gamePlayer.player = { id: playerDto.playerId } as User;
       gamePlayer.role = playerDto.role;
       gamePlayer.points = playerDto.points || 0;
+      gamePlayer.lh = playerDto.lh || 0;
+      gamePlayer.ci = playerDto.ci || 0;
       gamePlayer.bonusPoints = playerDto.bonusPoints || 0;
       gamePlayer.penaltyPoints = playerDto.penaltyPoints || 0;
       gamePlayer.game = savedGame;
@@ -682,6 +688,8 @@ export class GamesService {
       // Обновляем данные игрока
       gamePlayer.role = playerResult.role;
       gamePlayer.points = playerResult.points;
+      gamePlayer.lh = playerResult.lh || 0;
+      gamePlayer.ci = playerResult.ci || 0;
       gamePlayer.bonusPoints = playerResult.bonusPoints || 0;
       gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
 

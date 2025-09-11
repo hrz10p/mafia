@@ -7,6 +7,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/roles.enum';
 import { ApiRoles } from '../common/decorators/api-roles.decorator';
 import { Club } from '../clubs/club.entity';
+import { AdminUpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('Admin - Администрирование системы')
 @Controller('admin')
@@ -145,5 +146,18 @@ export class AdminController {
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async resetAllPlayersElo() {
     return this.adminService.resetAllPlayersElo();
+  }
+
+  // Update basic user profile fields (email, nickname)
+  @Put('users/:id/profile')
+  @Roles(UserRole.ADMIN)
+  @ApiRoles([UserRole.ADMIN], 'Обновить профиль пользователя (email, ник)')
+  @ApiOperation({ summary: 'Обновить профиль пользователя (email, ник)' })
+  @ApiResponse({ status: 200, description: 'Профиль пользователя обновлен' })
+  async updateUserProfile(
+    @Param('id') id: string,
+    @Body() dto: AdminUpdateUserDto,
+  ) {
+    return this.adminService.updateUserProfileBasic(+id, dto);
   }
 } 

@@ -26,6 +26,24 @@ export class UpdateGamePlayerResultDto {
   @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
   points: number;
 
+  @ApiPropertyOptional({
+    description: 'LH очки',
+    example: 1.5,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
+  lh?: number;
+
+  @ApiPropertyOptional({
+    description: 'CI очки',
+    example: 1.0,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
+  ci?: number;
+
   @ApiProperty({
     description: 'Дополнительные баллы',
     example: 2.25,

@@ -209,6 +209,8 @@ export class TournamentsService {
       totalWins: number;
       totalPoints: number;
       totalBonusPoints: number;
+      totalLh: number;
+      totalCi: number;
       roleStats: Map<string, { gamesPlayed: number; gamesWon: number }>;
     }>();
 
@@ -223,6 +225,8 @@ export class TournamentsService {
             totalWins: 0,
             totalPoints: 0,
             totalBonusPoints: 0,
+            totalLh: 0,
+            totalCi: 0,
             roleStats: new Map()
           });
         }
@@ -239,6 +243,8 @@ export class TournamentsService {
 
         stats.totalBonusPoints += gamePlayer.bonusPoints || 0;
         stats.totalPoints -= gamePlayer.penaltyPoints || 0;
+        stats.totalLh += (gamePlayer.lh || 0);
+        stats.totalCi += (gamePlayer.ci || 0);
 
         // Статистика по роли
         const role = gamePlayer.role;
@@ -272,7 +278,7 @@ export class TournamentsService {
     // Создаем финальную турнирную таблицу
     const tournamentTable = Array.from(playerStats.entries()).map(([playerId, stats]) => ({
       playerId,
-      totalPoints: stats.totalPoints + stats.totalBonusPoints - (stats.totalPenaltyPoints || 0),
+      totalPoints: stats.totalPoints + stats.totalBonusPoints + stats.totalLh + stats.totalCi,
       stats
     }));
 

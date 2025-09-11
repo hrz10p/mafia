@@ -28,6 +28,24 @@ export class CreateGamePlayerDto {
   points?: number;
 
   @ApiPropertyOptional({ 
+    description: 'LH очки', 
+    default: 0,
+    example: 1.5
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
+  lh?: number;
+
+  @ApiPropertyOptional({ 
+    description: 'CI очки', 
+    default: 0,
+    example: 1.0
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 3 })
+  ci?: number;
+
+  @ApiPropertyOptional({ 
     description: 'Дополнительные баллы', 
     default: 0,
     example: 2.25

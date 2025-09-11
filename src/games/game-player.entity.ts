@@ -37,6 +37,12 @@ export class GamePlayer {
   points: number;
 
   @Column({ type: 'float', default: 0 })
+  lh: number;
+
+  @Column({ type: 'float', default: 0 })
+  ci: number;
+
+  @Column({ type: 'float', default: 0 })
   bonusPoints: number;
 
   @Column({ type: 'float', default: 0 })
