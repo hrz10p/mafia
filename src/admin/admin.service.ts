@@ -163,7 +163,7 @@ export class AdminService {
   async deleteClub(clubId: number): Promise<void> {
     const club = await this.clubsRepository.findOne({
       where: { id: clubId },
-      relations: ['owner', 'administrators', 'members', 'tournaments', 'seasons', 'games', 'clubRequests'],
+      relations: ['owner', 'administrators', 'members'],
     });
 
     if (!club) {
