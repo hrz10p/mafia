@@ -8,6 +8,7 @@ import { GamePlayer } from './game-player.entity';
 export enum GameResult {
   MAFIA_WIN = 'MAFIA_WIN',
   CITIZEN_WIN = 'CITIZEN_WIN',
+  MANIAC_WIN = 'MANIAC_WIN',
   DRAW = 'DRAW'
 }
 
@@ -29,7 +30,7 @@ export class Game {
   })
   result: GameResult;
 
-  @ManyToOne(() => Club, { eager: true })
+  @ManyToOne(() => Club, { eager: true, onDelete: 'CASCADE' })
   club: Club;
 
   @ManyToOne(() => User, { eager: true })
@@ -38,7 +39,7 @@ export class Game {
   @ManyToOne(() => Season, season => season.games, { nullable: true })
   season: Season;
 
-  @ManyToOne(() => Tournament, tournament => tournament.games, { nullable: true })
+  @ManyToOne(() => Tournament, tournament => tournament.games, { nullable: true, onDelete: 'CASCADE' })
   tournament: Tournament;
 
   @OneToMany(() => GamePlayer, gamePlayer => gamePlayer.game, { cascade: true })

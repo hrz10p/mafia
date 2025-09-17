@@ -687,11 +687,18 @@ export class GamesService {
 
       // Обновляем данные игрока
       gamePlayer.role = playerResult.role;
-      gamePlayer.points = playerResult.points;
-      gamePlayer.lh = playerResult.lh || 0;
-      gamePlayer.ci = playerResult.ci || 0;
-      gamePlayer.bonusPoints = playerResult.bonusPoints || 0;
-      gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
+      gamePlayer.points += playerResult.points || 0;
+      gamePlayer.lh += playerResult.lh || 0;
+      gamePlayer.ci += playerResult.ci || 0;
+      gamePlayer.bonusPoints += playerResult.bonusPoints || 0;
+      gamePlayer.penaltyPoints += playerResult.penaltyPoints || 0;
+
+      // Автоматически начисляем баллы за победу
+      const { getWinPoints } = require('../common/utils/win-points');
+      const winPoints = getWinPoints(gamePlayer.role, game.result);
+      if (winPoints > 0) {
+        gamePlayer.points = (gamePlayer.points || 0) + winPoints;
+      }
 
       const saved = await this.gamePlayersRepository.save(gamePlayer);
       updatedGamePlayers.push(saved);

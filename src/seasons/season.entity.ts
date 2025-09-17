@@ -34,13 +34,13 @@ export class Season {
   })
   status: SeasonStatus;
 
-  @ManyToOne(() => Club, { eager: true })
+  @ManyToOne(() => Club, { eager: true, onDelete: 'CASCADE' })
   club: Club;
 
   @ManyToOne(() => User, { eager: true })
   referee: User;
 
-  @OneToMany(() => Game, game => game.season)
+  @OneToMany(() => Game, game => game.season, { cascade: true })
   games: Game[];
 
   @CreateDateColumn()

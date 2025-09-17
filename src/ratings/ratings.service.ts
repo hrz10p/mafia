@@ -67,9 +67,11 @@ export class RatingsService {
         stats.totalPoints += combinedPoints;
         stats.gamesPlayed += 1;
 
-        // Определяем победителя (можно настроить логику)
-        // Пока считаем, что игрок победил, если набрал больше 0 очков
-        if (combinedPoints > 0) {
+
+        
+
+        const { isPlayerWinner } = require('../common/utils/win-points');
+        if (isPlayerWinner(gamePlayer.role, game.result)) {
           stats.gamesWon += 1;
         }
       }

@@ -37,7 +37,7 @@ export class Club {
   @ManyToOne(() => User, { eager: true })
   owner: User;
 
-  @ManyToMany(() => User)
+  @ManyToMany(() => User, { cascade: true })
   @JoinTable({
     name: 'club_administrators',
     joinColumn: { name: 'club_id', referencedColumnName: 'id' },
@@ -45,7 +45,7 @@ export class Club {
   })
   administrators: User[];
 
-  @ManyToMany(() => User)
+  @ManyToMany(() => User, { cascade: true })
   @JoinTable({
     name: 'club_members',
     joinColumn: { name: 'club_id', referencedColumnName: 'id' },

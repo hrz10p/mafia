@@ -46,13 +46,13 @@ export class Tournament {
   @Column({ type: 'int', nullable: true })
   stars: number; // От 1 до 6, только для ELO турниров
 
-  @ManyToOne(() => Club, { eager: true, nullable: true })
+  @ManyToOne(() => Club, { eager: true, nullable: true, onDelete: 'CASCADE' })
   club: Club;
 
   @ManyToOne(() => User, { eager: true })
   referee: User;
 
-  @OneToMany(() => Game, game => game.tournament)
+  @OneToMany(() => Game, game => game.tournament, { cascade: true })
   games: Game[];
 
   @CreateDateColumn()

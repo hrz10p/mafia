@@ -21,7 +21,7 @@ export class ClubRequest {
   @ManyToOne(() => User, { eager: true })
   user: User;
 
-  @ManyToOne(() => Club, { eager: true })
+  @ManyToOne(() => Club, { eager: true, onDelete: 'CASCADE' })
   club: Club;
 
   @Column({

@@ -30,7 +30,7 @@ export class User {
   })
   role: UserRole;
 
-  @ManyToOne(() => Club, club => club.members, { nullable: true })
+  @ManyToOne(() => Club, club => club.members, { nullable: true, onDelete: 'SET NULL' })
   club: Club;
 
   @ManyToMany(() => Club, club => club.administrators)

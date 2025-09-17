@@ -138,7 +138,14 @@ export class TournamentsService {
   }
 
   async remove(id: number, currentUser: User): Promise<void> {
-    const tournament = await this.findOne(id);
+    const tournament = await this.tournamentsRepository.findOne({
+      where: { id },
+      relations: ['club', 'club.owner', 'club.administrators', 'games'],
+    });
+
+    if (!tournament) {
+      throw new NotFoundException('Турнир не найден');
+    }
 
     // Проверяем права доступа
     if (currentUser.role !== UserRole.ADMIN && 
@@ -149,7 +156,11 @@ export class TournamentsService {
       throw new ForbiddenException('Недостаточно прав для удаления турнира');
     }
 
-    await this.tournamentsRepository.remove(tournament);
+    // Use a transaction to ensure all related data is deleted properly
+    await this.tournamentsRepository.manager.transaction(async (transactionalEntityManager) => {
+      // Delete the tournament (cascade will handle related games)
+      await transactionalEntityManager.remove(Tournament, tournament);
+    });
   }
 
   async updateStatus(id: number, status: TournamentStatus, currentUser: User): Promise<Tournament> {
@@ -310,16 +321,9 @@ export class TournamentsService {
   }
 
   private isPlayerWinner(game: Game, gamePlayer: GamePlayer): boolean {
-    // Логика определения победителя
-    // Можно расширить в зависимости от правил игры
-    if (game.result === 'MAFIA_WIN' && gamePlayer.role === 'MAFIA') {
-      return true;
-    }
-    if (game.result === 'CITIZEN_WIN' && gamePlayer.role === 'CITIZEN') {
-      return true;
-    }
-    // Добавить другие роли по необходимости
-    return false;
+    // Используем новую утилиту для определения победителя
+    const { isPlayerWinner } = require('../common/utils/win-points');
+    return isPlayerWinner(gamePlayer.role, game.result);
   }
 
   private async updatePlayerProfile(

@@ -163,13 +163,45 @@ export class AdminService {
   async deleteClub(clubId: number): Promise<void> {
     const club = await this.clubsRepository.findOne({
       where: { id: clubId },
+      relations: ['owner', 'administrators', 'members', 'tournaments', 'seasons', 'games', 'clubRequests'],
     });
 
     if (!club) {
       throw new NotFoundException('Клуб не найден');
     }
 
-    await this.clubsRepository.remove(club);
+    // Use a transaction to ensure all related data is deleted properly
+    await this.clubsRepository.manager.transaction(async (transactionalEntityManager) => {
+      // First, update users who have this club as their primary club to null
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .update(User)
+        .set({ club: null })
+        .where('clubId = :clubId', { clubId })
+        .execute();
+
+      // Remove users from ManyToMany relationships
+      if (club.administrators && club.administrators.length > 0) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from('club_administrators')
+          .where('club_id = :clubId', { clubId })
+          .execute();
+      }
+
+      if (club.members && club.members.length > 0) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from('club_members')
+          .where('club_id = :clubId', { clubId })
+          .execute();
+      }
+
+      // Delete the club (cascade will handle related entities)
+      await transactionalEntityManager.remove(Club, club);
+    });
   }
 
   // Reset all players ELO to 1000
