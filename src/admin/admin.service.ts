@@ -199,8 +199,46 @@ export class AdminService {
           .execute();
       }
 
-      // Delete the club (cascade will handle related entities)
-      await transactionalEntityManager.remove(Club, club);
+      // Delete related entities in the correct order
+      // 1. Delete club requests
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(ClubRequest)
+        .where('clubId = :clubId', { clubId })
+        .execute();
+
+      // 2. Delete games (this will cascade to game players)
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(Game)
+        .where('clubId = :clubId', { clubId })
+        .execute();
+
+      // 3. Delete seasons
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(Season)
+        .where('clubId = :clubId', { clubId })
+        .execute();
+
+      // 4. Delete tournaments
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(Tournament)
+        .where('clubId = :clubId', { clubId })
+        .execute();
+
+      // 5. Finally delete the club
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(Club)
+        .where('id = :clubId', { clubId })
+        .execute();
     });
   }
 
