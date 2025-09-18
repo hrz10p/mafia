@@ -37,7 +37,7 @@ export class Season {
   @ManyToOne(() => Club, { eager: true, onDelete: 'CASCADE' })
   club: Club;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   referee: User;
 
   @OneToMany(() => Game, game => game.season, { cascade: true })

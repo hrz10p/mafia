@@ -20,7 +20,7 @@ export class GamePlayer {
   @ManyToOne(() => Game, game => game.players, { onDelete: 'CASCADE' })
   game: Game;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   player: User;
 
   @Column({

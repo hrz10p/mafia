@@ -34,7 +34,7 @@ export class Club {
   })
   status: ClubStatus;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   owner: User;
 
   @ManyToMany(() => User, { cascade: true })

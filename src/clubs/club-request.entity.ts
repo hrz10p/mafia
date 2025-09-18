@@ -18,7 +18,7 @@ export class ClubRequest {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   user: User;
 
   @ManyToOne(() => Club, { eager: true, onDelete: 'CASCADE' })
