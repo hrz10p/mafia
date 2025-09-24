@@ -693,12 +693,7 @@ export class GamesService {
       gamePlayer.bonusPoints = playerResult.bonusPoints || 0;
       gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
 
-      // Автоматически начисляем баллы за победу
-      const { getWinPoints } = require('../common/utils/win-points');
-      const winPoints = getWinPoints(gamePlayer.role, game.result);
-      if (winPoints > 0) {
-        gamePlayer.points = (gamePlayer.points || 0) + winPoints;
-      }
+
 
       const saved = await this.gamePlayersRepository.save(gamePlayer);
       updatedGamePlayers.push(saved);
