@@ -706,6 +706,13 @@ export class GamesService {
         gamePlayer.points = (gamePlayer.points || 0) + points;
       }
 
+      gamePlayer.points = parseFloat(gamePlayer.points.toFixed(2));
+      gamePlayer.winPoints = parseFloat(gamePlayer.winPoints.toFixed(2));
+      gamePlayer.lh = parseFloat(gamePlayer.lh.toFixed(2));
+      gamePlayer.ci = parseFloat(gamePlayer.ci.toFixed(2));
+      gamePlayer.bonusPoints = parseFloat(gamePlayer.bonusPoints.toFixed(2));
+      gamePlayer.penaltyPoints = parseFloat(gamePlayer.penaltyPoints.toFixed(2));
+
       const saved = await this.gamePlayersRepository.save(gamePlayer);
       updatedGamePlayers.push(saved);
     }
