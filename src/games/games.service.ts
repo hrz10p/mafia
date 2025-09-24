@@ -701,7 +701,7 @@ export class GamesService {
         gamePlayer.points = (gamePlayer.points || 0) - gamePlayer.winPoints;
         gamePlayer.winPoints = 0;
       }
-      if (points > 0) {
+      if (points > 0 && gamePlayer.winPoints === 0) {
         gamePlayer.winPoints = points;
         gamePlayer.points = (gamePlayer.points || 0) + points;
       }
