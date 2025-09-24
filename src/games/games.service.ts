@@ -141,7 +141,7 @@ export class GamesService {
 
         // Создаем игру
         const game = this.gamesRepository.create({
-          name: `Игра #${gameIndex + 1}`,
+          name: `Игра #${gameIndex}`,
           description: `Автоматически сгенерированная игра для турнира`,
           club: tournament.club,
           referee: tournament.referee,

@@ -247,9 +247,12 @@ export class TournamentsService {
         stats.totalPoints += gamePlayer.points || 0;
 
         // Определяем, выиграл ли игрок (по результату игры)
-        const isWinner = this.isPlayerWinner(game, gamePlayer);
-        if (isWinner) {
+        const winPoints = this.getWinPoints(game, gamePlayer);
+        if (winPoints > 0) {
           stats.totalWins += 1;
+          stats.totalPoints += winPoints;
+          gamePlayer.points += winPoints;
+          await this.gamePlayersRepository.save(gamePlayer);
         }
 
         stats.totalBonusPoints += gamePlayer.bonusPoints || 0;
@@ -265,7 +268,7 @@ export class TournamentsService {
         
         const roleStats = stats.roleStats.get(role)!;
         roleStats.gamesPlayed += 1;
-        if (isWinner) {
+        if (winPoints > 0) {
           roleStats.gamesWon += 1;
         }
       }
@@ -320,10 +323,10 @@ export class TournamentsService {
     });
   }
 
-  private isPlayerWinner(game: Game, gamePlayer: GamePlayer): boolean {
+  private getWinPoints(game: Game, gamePlayer: GamePlayer): number {
     // Используем новую утилиту для определения победителя
-    const { isPlayerWinner } = require('../common/utils/win-points');
-    return isPlayerWinner(gamePlayer.role, game.result);
+    const { getWinPoints } = require('../common/utils/win-points');
+    return getWinPoints(gamePlayer.role, game.result);
   }
 
   private async updatePlayerProfile(
