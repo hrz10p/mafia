@@ -48,6 +48,9 @@ export class GamePlayer {
   @Column({ type: 'float', default: 0 })
   penaltyPoints: number;
 
+  @Column({ type: 'float', default: 0 })
+  winPoints: number;
+
   @Column({ default: 0 })
   gamesPlayed: number;
 

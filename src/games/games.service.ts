@@ -694,6 +694,17 @@ export class GamesService {
       gamePlayer.penaltyPoints = playerResult.penaltyPoints || 0;
 
 
+      // Обновляем очки игрока в базе данных
+      const { getWinPoints } = require('../common/utils/win-points');
+      let points = getWinPoints(gamePlayer.role, game.result);
+      if (gamePlayer.winPoints > 0 && points === 0) {
+        gamePlayer.points = (gamePlayer.points || 0) - gamePlayer.winPoints;
+        gamePlayer.winPoints = 0;
+      }
+      if (points > 0) {
+        gamePlayer.winPoints = points;
+        gamePlayer.points = (gamePlayer.points || 0) + points;
+      }
 
       const saved = await this.gamePlayersRepository.save(gamePlayer);
       updatedGamePlayers.push(saved);
