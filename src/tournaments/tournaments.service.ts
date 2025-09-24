@@ -252,26 +252,6 @@ export class TournamentsService {
         const winPoints = this.getWinPoints(game, gamePlayer);
         if (winPoints > 0) {
           stats.totalWins += 1;
-          stats.totalPoints += winPoints;
-          
-          // Обновляем очки игрока в базе данных
-          const newPoints = (gamePlayer.points || 0) + winPoints;
-          try {
-            const updateResult = await transactionalEntityManager.update(GamePlayer,
-              { id: gamePlayer.id }, 
-              { points: newPoints }
-            );
-            
-            if (updateResult.affected === 0) {
-              console.warn(`Не удалось обновить очки для GamePlayer с ID ${gamePlayer.id}`);
-            } else {
-              // Обновляем локальный объект для дальнейшего использования
-              gamePlayer.points = newPoints;
-            }
-          } catch (error) {
-            console.error(`Ошибка при обновлении очков для GamePlayer с ID ${gamePlayer.id}:`, error);
-            throw error; // Пробрасываем ошибку, чтобы транзакция откатилась
-          }
         }
 
         stats.totalBonusPoints += gamePlayer.bonusPoints || 0;
