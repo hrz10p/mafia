@@ -696,7 +696,7 @@ export class GamesService {
 
       // Обновляем очки игрока в базе данных
       const { getWinPoints } = require('../common/utils/win-points');
-      let points = getWinPoints(gamePlayer.role, game.result);
+      let points = getWinPoints(gamePlayer.role, updateGameResultDto.result);
       if (gamePlayer.winPoints > 0 && points === 0) {
         gamePlayer.points = (gamePlayer.points || 0) - gamePlayer.winPoints;
         gamePlayer.winPoints = 0;

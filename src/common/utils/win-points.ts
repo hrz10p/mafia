@@ -39,6 +39,9 @@ export const WIN_POINTS_CONFIG: WinPointsConfig[] = [
  * @returns количество баллов за победу (0 если не победил)
  */
 export function getWinPoints(role: PlayerRole, gameResult: GameResult): number {
+  if (!gameResult || !role) {
+    return 0;
+  }
   const config = WIN_POINTS_CONFIG.find(
     c => c.role === role && c.gameResult === gameResult
   );
