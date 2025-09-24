@@ -340,18 +340,28 @@ export class TournamentsService {
     }
   ): Promise<void> {
     // Обновляем общую статистику пользователя
+    const user = await this.usersRepository.findOne({ where: { id: playerId } });
+    if (!user) {
+      return;
+    }
+
     await this.usersRepository.update(playerId, {
-      totalGames: stats.totalGames,
-      totalWins: stats.totalWins,
-      totalPoints: stats.totalPoints,
-      totalBonusPoints: stats.totalBonusPoints
+      totalGames: user.totalGames + stats.totalGames,
+      totalWins: user.totalWins + stats.totalWins,
+      totalPoints: user.totalPoints + stats.totalPoints,
+      totalBonusPoints: user.totalBonusPoints + stats.totalBonusPoints
     });
+
+    const userRoleStats = await this.userRoleStatsService.getUserRoleStats(playerId);
+    if (!userRoleStats || userRoleStats.length === 0) {
+      return;
+    }
 
     // Подготавливаем данные для bulk обновления статистики по ролям
     const roleStatsArray = Array.from(stats.roleStats.entries()).map(([role, roleStats]) => ({
       role: role as any, // PlayerRole
-      gamesPlayed: roleStats.gamesPlayed,
-      gamesWon: roleStats.gamesWon
+      gamesPlayed: roleStats.gamesPlayed + userRoleStats.find(stat => stat.role === role)?.gamesPlayed || 0,
+      gamesWon: roleStats.gamesWon + userRoleStats.find(stat => stat.role === role)?.gamesWon || 0
     }));
 
     // Обновляем статистику по ролям
