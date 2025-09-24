@@ -204,15 +204,17 @@ export class TournamentsService {
   }
 
   private async updatePlayerStatsFromTournament(tournament: Tournament): Promise<void> {
-    // Получаем все игры турнира с игроками
-    const games = await this.gamesRepository.find({
-      where: { tournament: { id: tournament.id } },
-      relations: ['players', 'players.player']
-    });
+    // Используем транзакцию для обеспечения целостности данных
+    await this.gamePlayersRepository.manager.transaction(async (transactionalEntityManager) => {
+      // Получаем все игры турнира с игроками
+      const games = await transactionalEntityManager.find(Game, {
+        where: { tournament: { id: tournament.id } },
+        relations: ['players', 'players.player']
+      });
 
-    if (games.length === 0) {
-      return; // Нет игр для обработки
-    }
+      if (games.length === 0) {
+        return; // Нет игр для обработки
+      }
 
     // Собираем статистику по каждому игроку
     const playerStats = new Map<number, {
@@ -251,8 +253,25 @@ export class TournamentsService {
         if (winPoints > 0) {
           stats.totalWins += 1;
           stats.totalPoints += winPoints;
-          gamePlayer.points += winPoints;
-          await this.gamePlayersRepository.save(gamePlayer);
+          
+          // Обновляем очки игрока в базе данных
+          const newPoints = (gamePlayer.points || 0) + winPoints;
+          try {
+            const updateResult = await transactionalEntityManager.update(GamePlayer,
+              { id: gamePlayer.id }, 
+              { points: newPoints }
+            );
+            
+            if (updateResult.affected === 0) {
+              console.warn(`Не удалось обновить очки для GamePlayer с ID ${gamePlayer.id}`);
+            } else {
+              // Обновляем локальный объект для дальнейшего использования
+              gamePlayer.points = newPoints;
+            }
+          } catch (error) {
+            console.error(`Ошибка при обновлении очков для GamePlayer с ID ${gamePlayer.id}:`, error);
+            throw error; // Пробрасываем ошибку, чтобы транзакция откатилась
+          }
         }
 
         stats.totalBonusPoints += gamePlayer.bonusPoints || 0;
@@ -279,10 +298,11 @@ export class TournamentsService {
       await this.updatePlayerProfile(playerId, stats);
     }
 
-    // Если это ELO турнир, обновляем ELO рейтинги по финальной турнирной таблице
-    if (tournament.type === TournamentType.ELO && tournament.stars) {
-      await this.updateEloRatingsFromTournamentTable(tournament, playerStats);
-    }
+      // Если это ELO турнир, обновляем ELO рейтинги по финальной турнирной таблице
+      if (tournament.type === TournamentType.ELO && tournament.stars) {
+        await this.updateEloRatingsFromTournamentTable(tournament, playerStats);
+      }
+    });
   }
 
   private async updateEloRatingsFromTournamentTable(
