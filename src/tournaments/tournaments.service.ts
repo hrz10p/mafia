@@ -258,7 +258,7 @@ export class TournamentsService {
         stats.totalLh += (gamePlayer.lh || 0);
         stats.totalCi += (gamePlayer.ci || 0);
 
-        stats.totalPoints += stats.totalBonusPoints + stats.totalLh + stats.totalCi - gamePlayer.penaltyPoints || 0;
+        stats.totalPoints += gamePlayer.bonusPoints + gamePlayer.lh + gamePlayer.ci - gamePlayer.penaltyPoints || 0;
 
         // Статистика по роли
         const role = gamePlayer.role;
