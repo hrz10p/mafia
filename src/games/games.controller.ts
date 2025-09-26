@@ -29,8 +29,8 @@ export class GamesController {
   }
 
   @Post('generate')
-  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
-  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Генерировать игры для турнира')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN, UserRole.PLAYER)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN, UserRole.PLAYER], 'Генерировать игры для турнира')
   @ApiOperation({ summary: 'Генерировать игры для турнира с автоматической рассадкой игроков' })
   @ApiResponse({ status: 201, description: 'Игры успешно сгенерированы', type: [Game] })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
@@ -40,8 +40,8 @@ export class GamesController {
   }
 
   @Post('generate-final')
-  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
-  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Генерировать финальные игры для турнира')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN, UserRole.PLAYER)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN, UserRole.PLAYER], 'Генерировать финальные игры для турнира')
   @ApiResponse({ status: 201, description: 'Финальные игры успешно сгенерированы', type: [Game] })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
   @ApiResponse({ status: 404, description: 'Турнир не найден' })
@@ -84,8 +84,8 @@ export class GamesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN)
-  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN], 'Обновить игру')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN, UserRole.PLAYER)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.JUDGE, UserRole.ADMIN, UserRole.PLAYER], 'Обновить игру')
   @ApiResponse({ status: 200, description: 'Игра обновлена', type: Game })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
   @ApiResponse({ status: 404, description: 'Игра не найдена' })
@@ -113,8 +113,8 @@ export class GamesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN)
-  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN], 'Удалить игру')
+  @Roles(UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN, UserRole.PLAYER)
+  @ApiRoles([UserRole.CLUB_OWNER, UserRole.CLUB_ADMIN, UserRole.ADMIN, UserRole.PLAYER], 'Удалить игру')
   @ApiResponse({ status: 200, description: 'Игра удалена' })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
   @ApiResponse({ status: 404, description: 'Игра не найдена' })
