@@ -186,6 +186,7 @@ export class UsersService {
       totalPoints: player.totalPoints,
       eloRating: player.eloRating,
       totalBonusPoints: player.totalBonusPoints,
+      tournamentsParticipated: player.tournamentsParticipated,
       createdAt: player.createdAt,
     }));
 
@@ -318,6 +319,7 @@ export class UsersService {
       totalPoints: user.totalPoints,
       eloRating: user.eloRating,
       totalBonusPoints: user.totalBonusPoints,
+      tournamentsParticipated: user.tournamentsParticipated,
       roleStats: roleStats.map(stat => ({
         id: stat.id,
         role: stat.role,

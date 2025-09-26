@@ -47,6 +47,9 @@ export class ExtendedUserProfileDto {
     // Additional points
     @ApiProperty({ description: 'Общее количество бонусных очков' })
     totalBonusPoints: number;
+
+    @ApiProperty({ description: 'Общее количество турниров, в которых принял участие' })
+    tournamentsParticipated: number;
   
     @ApiProperty({ 
       description: 'Статистика по ролям игрока',
