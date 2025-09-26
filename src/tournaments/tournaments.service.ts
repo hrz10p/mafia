@@ -187,7 +187,7 @@ export class TournamentsService {
         (!tournament.club || (
           tournament.club.owner.id !== currentUser.id && 
           !tournament.club.administrators.some(admin => admin.id === currentUser.id)
-        ))) {
+        )) || tournament.referee.id !== currentUser.id) {
       throw new ForbiddenException('Недостаточно прав для завершения турнира');
     }
 
@@ -350,7 +350,8 @@ export class TournamentsService {
       totalGames: user.totalGames + stats.totalGames,
       totalWins: user.totalWins + stats.totalWins,
       totalPoints: user.totalPoints + stats.totalPoints,
-      totalBonusPoints: user.totalBonusPoints + stats.totalBonusPoints
+      totalBonusPoints: user.totalBonusPoints + stats.totalBonusPoints,
+      tournamentsParticipated: user.tournamentsParticipated + 1
     });
 
     const userRoleStats = await this.userRoleStatsService.getUserRoleStats(playerId);

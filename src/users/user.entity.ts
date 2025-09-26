@@ -57,6 +57,9 @@ export class User {
   @Column({ type: 'float', default: 0 })
   totalBonusPoints: number;
 
+  @Column({ type: 'int', default: 0 })
+  tournamentsParticipated: number;
+
   // Role-based statistics
   @OneToMany(() => UserRoleStats, roleStats => roleStats.user, { cascade: true })
   roleStats: UserRoleStats[];

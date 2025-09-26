@@ -50,10 +50,12 @@ export class GamesService {
 
     // Проверяем права доступа
     let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
+
+    hasAccess = tournament.referee.id === currentUser.id;
     
     if (!hasAccess) {
       // Проверяем, является ли пользователь владельцем клуба
-      if (tournament.club.owner.id === currentUser.id) {
+      if (tournament.club && tournament.club.owner.id === currentUser.id) {
         hasAccess = true;
       } else {
         // Проверяем, является ли пользователь администратором клуба через прямой запрос
@@ -213,9 +215,11 @@ export class GamesService {
 
     // Check access permissions (same as generateGames)
     let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
+
+    hasAccess = tournament.referee.id === currentUser.id;
     
     if (!hasAccess) {
-      if (tournament.club.owner.id === currentUser.id) {
+      if (tournament.club && tournament.club.owner.id === currentUser.id) {
         hasAccess = true;
       } else {
         const isClubAdmin = await this.clubsRepository
@@ -646,10 +650,12 @@ export class GamesService {
 
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
     let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.id === game.referee.id;
+
+    hasAccess = game.referee.id === currentUser.id;
     
     if (!hasAccess) {
       // Проверяем, является ли пользователь владельцем клуба
-      if (game.club.owner.id === currentUser.id) {
+      if (game.club && game.club.owner.id === currentUser.id) {
         hasAccess = true;
       } else {
         // Проверяем, является ли пользователь администратором клуба через прямой запрос
