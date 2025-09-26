@@ -187,7 +187,7 @@ export class TournamentsService {
         (!tournament.club || (
           tournament.club.owner.id !== currentUser.id && 
           !tournament.club.administrators.some(admin => admin.id === currentUser.id)
-        )) || tournament.referee.id !== currentUser.id) {
+        )) && tournament.referee.id !== currentUser.id) {
       throw new ForbiddenException('Недостаточно прав для завершения турнира');
     }
 
