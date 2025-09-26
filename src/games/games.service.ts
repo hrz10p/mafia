@@ -51,7 +51,9 @@ export class GamesService {
     // Проверяем права доступа
     let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
 
+    if (!hasAccess) {
     hasAccess = tournament.referee.id === currentUser.id;
+    }
     
     if (!hasAccess) {
       // Проверяем, является ли пользователь владельцем клуба
@@ -216,7 +218,9 @@ export class GamesService {
     // Check access permissions (same as generateGames)
     let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.JUDGE;
 
+    if (!hasAccess) {
     hasAccess = tournament.referee.id === currentUser.id;
+    }
     
     if (!hasAccess) {
       if (tournament.club && tournament.club.owner.id === currentUser.id) {
@@ -651,7 +655,9 @@ export class GamesService {
     // Проверяем права доступа (владелец, администратор клуба, судья или админ системы)
     let hasAccess = currentUser.role === UserRole.ADMIN || currentUser.id === game.referee.id;
 
+    if (!hasAccess) {
     hasAccess = game.referee.id === currentUser.id;
+    }
     
     if (!hasAccess) {
       // Проверяем, является ли пользователь владельцем клуба
