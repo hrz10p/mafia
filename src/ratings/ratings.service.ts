@@ -62,6 +62,8 @@ export class RatingsService {
         const stats = playerStats.get(playerId)!;
         const combinedPoints =
           (gamePlayer.points ?? 0) +
+          (gamePlayer.lh ?? 0) +
+          (gamePlayer.ci ?? 0) +
           (gamePlayer.bonusPoints ?? 0) -
           (gamePlayer.penaltyPoints ?? 0);
         stats.totalPoints += combinedPoints;
@@ -142,6 +144,8 @@ export class RatingsService {
         const stats = playerStats.get(playerId)!;
         const combinedPoints =
           (gamePlayer.points ?? 0) +
+          (gamePlayer.lh ?? 0) +
+          (gamePlayer.ci ?? 0) +
           (gamePlayer.bonusPoints ?? 0) -
           (gamePlayer.penaltyPoints ?? 0);
         stats.totalPoints += combinedPoints;
